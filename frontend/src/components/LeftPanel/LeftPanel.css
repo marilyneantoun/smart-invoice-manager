@@ -1,0 +1,183 @@
+/* ============================================================
+   LeftPanel.css — matches preview v6 exactly
+   ============================================================ */
+
+.panel-left {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 44px 52px;
+  overflow: hidden;
+  background: linear-gradient(170deg, #0a0f1a 0%, #0d1425 40%, #0b1018 100%);
+  min-height: 100vh;
+}
+
+/* ---- Background photo ---- */
+.bg-photo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  filter: blur(0.5px);
+  transform: scale(1.03);
+  transform-origin: center;
+  opacity: 1;
+}
+
+/* ---- Dark gradient overlay ---- */
+.bg-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(8,12,20,0.10) 0%, rgba(8,12,20,0.12) 35%, rgba(8,12,20,0.28) 70%, rgba(8,12,20,0.55) 100%),
+    linear-gradient(to right,  rgba(8,12,20,0.10) 0%, rgba(8,12,20,0.02) 55%, rgba(8,12,20,0.35) 100%);
+}
+
+/* ---- Subtle green glow ---- */
+.bg-glow {
+  position: absolute;
+  top: 12%;
+  left: 30%;
+  width: 550px;
+  height: 450px;
+  background: radial-gradient(ellipse, rgba(13,150,104,0.05) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* All content sits above the backgrounds */
+.brand,
+.hero,
+.stats-row {
+  position: relative;
+  z-index: 2;
+}
+
+/* ---- Brand — SAME size as dashboard sidebar ---- */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeIn 0.7s ease both;
+}
+
+.brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #0D9668 0%, #0A7B55 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(13, 150, 104, 0.25);
+  position: relative;
+}
+
+.brand-mark svg { color: white; }
+.brand-mark .shield-icon { width: 20px; height: 20px; }
+.brand-mark .check-icon {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -45%);
+}
+
+.brand-wordmark {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.brand-wordmark span { color: var(--accent-text); }
+
+/* ---- Hero headline ---- */
+.hero {
+  max-width: 440px;
+  animation: fadeSlideUp 0.8s ease 0.1s both;
+  margin-top: -160px;
+}
+
+.hero h1 {
+  font-family: 'Fraunces', serif;
+  font-size: 38px;
+  font-weight: 400;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+  margin-bottom: 14px;
+  color: var(--text-primary);
+}
+
+.hero h1 em {
+  font-style: italic;
+  background: linear-gradient(135deg, #2DD4A0, #5EECC0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ---- Stats row (bottom) ---- */
+.stats-row {
+  display: flex;
+  gap: 36px;
+  animation: fadeSlideUp 0.8s ease 0.25s both;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent-text);
+}
+
+.stat-label {
+  font-size: 11.5px;
+  color: #A6B3C2;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ---- Animations ---- */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 1100px) {
+  .panel-left { padding: 36px 40px; }
+  .hero h1 { font-size: 36px; }
+}
+
+@media (max-width: 900px) {
+  .panel-left { min-height: 300px; padding: 32px 28px; }
+  .hero h1 { font-size: 30px; }
+  .stats-row { gap: 24px; }
+  .stat-value { font-size: 20px; }
+}
+
+@media (max-width: 480px) {
+  .panel-left { padding: 24px 20px; min-height: 260px; }
+  .hero h1 { font-size: 24px; }
+}

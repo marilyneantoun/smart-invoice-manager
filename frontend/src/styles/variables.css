@@ -1,0 +1,62 @@
+/* ============================================================
+   Global CSS Variables & Reset
+   Invoice Fraud Detection System — Login Page
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,400&display=swap');
+
+:root {
+  /* Backgrounds — unified with dashboard */
+  --bg-deep:          #080C14;
+  --bg-surface:       #0F1420;
+  --bg-card:          #0D1219;
+  --bg-input:         #0C1018;
+  --bg-input-hover:   #111827;
+
+  /* Borders */
+  --border-faint:     rgba(148, 163, 184, 0.06);
+  --border-subtle:    rgba(148, 163, 184, 0.10);
+  --border-medium:    rgba(148, 163, 184, 0.16);
+  --border-focus:     #0D9668;
+
+  /* Accent — deep emerald jade */
+  --accent:           #0D9668;
+  --accent-hover:     #0A7B55;
+  --accent-soft:      rgba(13, 150, 104, 0.12);
+  --accent-glow:      rgba(13, 150, 104, 0.16);
+  --accent-text:      #2DD4A0;
+
+  /* Danger */
+  --danger:           #F43F5E;
+  --danger-soft:      rgba(244, 63, 94, 0.08);
+
+  /* Text */
+  --text-primary:     #F1F5F9;
+  --text-secondary:   #94A3B8;
+  --text-tertiary:    #64748B;
+  --text-muted:       #475569;
+
+  /* Misc */
+  --radius-sm:        8px;
+  --shadow-glow:      0 0 40px rgba(13, 150, 104, 0.08);
+  --transition:       0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
