@@ -1,44 +1,68 @@
 /* ============================================================
    Global CSS Variables & Reset
-   Invoice Fraud Detection System — Login Page
+   Invoice Fraud Detection System — Light Theme (Off-White)
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,400&display=swap');
 
 :root {
-  /* Backgrounds — unified with dashboard */
-  --bg-deep:          #080C14;
-  --bg-surface:       #0F1420;
-  --bg-card:          #0D1219;
-  --bg-input:         #0C1018;
-  --bg-input-hover:   #111827;
+  /* Backgrounds — refined off-white palette */
+  --bg-deep:          #F7F8FA;
+  --bg-surface:       #EFF1F5;
+  --bg-card:          #FFFFFF;
+  --bg-input:         #FFFFFF;
+  --bg-sidebar:       #F0F1F5;
+  --bg-input-hover:   #F3F4F7;
 
   /* Borders */
-  --border-faint:     rgba(148, 163, 184, 0.06);
-  --border-subtle:    rgba(148, 163, 184, 0.10);
-  --border-medium:    rgba(148, 163, 184, 0.16);
+  --border-faint:     rgba(15, 23, 42, 0.06);
+  --border-subtle:    rgba(15, 23, 42, 0.08);
+  --border-medium:    rgba(15, 23, 42, 0.14);
   --border-focus:     #0D9668;
 
   /* Accent — deep emerald jade */
   --accent:           #0D9668;
   --accent-hover:     #0A7B55;
-  --accent-soft:      rgba(13, 150, 104, 0.12);
-  --accent-glow:      rgba(13, 150, 104, 0.16);
-  --accent-text:      #2DD4A0;
+  --accent-soft:      rgba(13, 150, 104, 0.08);
+  --accent-glow:      rgba(13, 150, 104, 0.10);
+  --accent-text:      #2DD4A0;          /* bright mint — for dark surfaces */
+  --accent-border:    rgba(13, 150, 104, 0.14);
+
+  /* Status colors — adjusted for light backgrounds */
+  --green:    #0D9668;
+  --green-l:  #2DD4A0;                  /* bright green for dark surfaces */
+  --green-s:  rgba(13, 150, 104, 0.08);
+  --green-b:  rgba(13, 150, 104, 0.14);
+
+  --yellow:   #B8860B;
+  --yellow-s: rgba(184, 134, 11, 0.08);
+  --yellow-b: rgba(184, 134, 11, 0.14);
+
+  --red:      #9B2C3D;
+  --red-s:    rgba(155, 44, 61, 0.08);
+  --red-b:    rgba(155, 44, 61, 0.14);
+
+  --blue:     #2E6BC6;
+  --blue-s:   rgba(46, 107, 198, 0.08);
+  --blue-b:   rgba(46, 107, 198, 0.14);
 
   /* Danger */
-  --danger:           #F43F5E;
-  --danger-soft:      rgba(244, 63, 94, 0.08);
+  --danger:           #D6293E;
+  --danger-soft:      rgba(214, 41, 62, 0.06);
 
-  /* Text */
-  --text-primary:     #F1F5F9;
-  --text-secondary:   #94A3B8;
+  /* Text — dark on light (for main content area) */
+  --text-primary:     #0F172A;
+  --text-secondary:   #475569;
   --text-tertiary:    #64748B;
-  --text-muted:       #475569;
+  --text-muted:       #94A3B8;
+
+  /* Text — light on dark (for left panel, dark overlays) */
+  --text-on-dark:     #F1F5F9;
+  --text-on-dark-sub: #A6B3C2;
 
   /* Misc */
   --radius-sm:        8px;
-  --shadow-glow:      0 0 40px rgba(13, 150, 104, 0.08);
+  --shadow-glow:      0 1px 3px rgba(15, 23, 42, 0.04);
   --transition:       0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 

@@ -9,6 +9,7 @@ const pool = require('./config/db');
 const express      = require('express');
 const cors         = require('cors');
 const authRoutes   = require('./routes/authRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app  = express();
@@ -27,6 +28,7 @@ app.use(cors({
 
 // ---- Routes ----
 app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Health-check — useful to confirm the server is running
 app.get('/api/health', (req, res) => {

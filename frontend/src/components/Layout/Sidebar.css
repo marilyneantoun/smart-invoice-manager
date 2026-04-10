@@ -1,0 +1,150 @@
+/* ============================================================
+   Sidebar.css
+   Persistent sidebar navigation styles
+   ============================================================ */
+
+.sidebar {
+  width: 230px;
+  min-width: 230px;
+  height: 100vh;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-faint);
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  position: relative;
+  z-index: 10;
+  transition: width 0.25s, min-width 0.25s;
+}
+
+.sidebar.collapsed { width: 68px; min-width: 68px; }
+
+/* ── Brand ── */
+.sidebar .brand {
+  padding: 20px 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-faint);
+}
+.sidebar.collapsed .brand { padding: 20px 17px; }
+
+.brand-mark {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: linear-gradient(135deg, #0D9668, #0A7B55);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(13,150,104,0.25);
+  flex-shrink: 0;
+}
+
+.brand-wordmark {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px; font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.brand-wordmark span { color: var(--accent-text); }
+
+.sidebar.collapsed .brand-wordmark,
+.sidebar.collapsed .nav-label,
+.sidebar.collapsed .user-info,
+.sidebar.collapsed .menu-title,
+.sidebar.collapsed .logout-btn { display: none; }
+
+/* ── Inner scroll ── */
+.sidebar-inner {
+  display: flex; flex-direction: column;
+  height: 100%; overflow-y: auto; overflow-x: hidden;
+}
+
+/* ── Navigation ── */
+.nav {
+  flex: 1; padding: 14px 10px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.menu-title {
+  font-size: 9.5px; font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 8px 12px; margin-bottom: 2px;
+}
+.menu-title + .menu-title { margin-top: 0; }
+.nav > .menu-title:not(:first-child) { margin-top: 8px; }
+
+.nav-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 7px;
+  border: none; cursor: pointer;
+  background: transparent; color: var(--text-muted);
+  font-size: 13px; font-weight: 500;
+  font-family: inherit; text-align: left;
+  white-space: nowrap; transition: all 0.15s;
+  border-left: 2px solid transparent;
+}
+.nav-btn:hover { background: rgba(15,23,42,0.04); color: var(--text-secondary); } 
+.nav-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  border-left-color: var(--accent);
+}
+.sidebar.collapsed .nav-btn { padding: 10px 14px; justify-content: center; }
+.nav-btn svg { flex-shrink: 0; }
+
+/* ── User section ── */
+.user-section {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border-faint);
+  display: flex; align-items: center; gap: 10px;
+}
+.sidebar.collapsed .user-section { padding: 14px 12px; justify-content: center; }
+
+.user-avatar {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, #0D9668, #0A7B55);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: white; flex-shrink: 0;
+}
+.user-info { flex: 1; min-width: 0; }
+.user-name {
+  font-size: 12.5px; font-weight: 600; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.user-role { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+
+.logout-btn {
+  width: 30px; height: 30px; border-radius: 7px;
+  border: 1px solid var(--border-faint);
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-muted);
+  flex-shrink: 0; transition: all 0.15s;
+}
+.logout-btn:hover {
+  background: rgba(155,44,61,0.14);
+  border-color: rgba(155,44,61,0.20);
+  color: #9B2C3D;
+}
+
+/* ── Collapse toggle ── */
+.collapse-btn {
+  position: absolute; top: 28px; right: -13px;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-sidebar);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-tertiary); z-index: 30;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.collapse-btn:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: rgba(13,150,104,0.16);
+}
+.sidebar.collapsed .collapse-btn { transform: rotate(180deg); }
+.sidebar .brand-wordmark {
+  color: #0F172A !important;
+}

@@ -195,15 +195,12 @@
 
 .forgot-link {
   font-size: 13px;
-  color: var(--accent-text);
+  color: #0D9668;
   text-decoration: none;
   font-weight: 500;
   transition: color 0.2s;
 }
 
-.forgot-link:hover {
-  color: var(--accent);
-}
 
 /* ---- Submit button ---- */
 .btn-submit {
