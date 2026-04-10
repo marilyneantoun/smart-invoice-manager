@@ -1,6 +1,6 @@
 import React from 'react';
 import './LeftPanel.css';
-import logimg from '../../assets/LoginImage.jpg';
+import logimg from '../../assets/loginImg.jpg';
 
 // ============================================================
 // LeftPanel — matches the preview v6 design exactly

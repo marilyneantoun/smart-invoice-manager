@@ -1,5 +1,6 @@
 /* ============================================================
-   LeftPanel.css — matches preview v6 exactly
+   LeftPanel.css — Login left panel (dark background with photo)
+   Text uses --text-on-dark / --accent-text for visibility
    ============================================================ */
 
 .panel-left {
@@ -36,7 +37,7 @@
   z-index: 0;
   pointer-events: none;
   background:
-    linear-gradient(to bottom, rgba(8,12,20,0.10) 0%, rgba(8,12,20,0.12) 35%, rgba(8,12,20,0.28) 70%, rgba(8,12,20,0.55) 100%),
+    linear-gradient(to bottom, rgba(8,12,20,0.03) 0%, rgba(8,12,20,0.05) 35%, rgba(8,12,20,0.10) 70%, rgba(8,12,20,0.20) 100%),
     linear-gradient(to right,  rgba(8,12,20,0.10) 0%, rgba(8,12,20,0.02) 55%, rgba(8,12,20,0.35) 100%);
 }
 
@@ -91,12 +92,13 @@
   transform: translate(-50%, -45%);
 }
 
+/* "Invoice" = white, "Shield" = mint green — on dark background */
 .brand-wordmark {
   font-family: 'Fraunces', Georgia, serif;
   font-size: 17px;
   font-weight: 500;
   letter-spacing: -0.02em;
-  color: var(--text-primary);
+  color: var(--text-on-dark);
 }
 
 .brand-wordmark span { color: var(--accent-text); }
@@ -108,6 +110,7 @@
   margin-top: -160px;
 }
 
+/* "Smart invoice review," = white — on dark background */
 .hero h1 {
   font-family: 'Fraunces', serif;
   font-size: 38px;
@@ -115,12 +118,13 @@
   line-height: 1.18;
   letter-spacing: -0.03em;
   margin-bottom: 14px;
-  color: var(--text-primary);
+  color: var(--text-on-dark);
 }
 
+/* "zero blind spots" = mint gradient — unchanged */
 .hero h1 em {
   font-style: italic;
-  background: linear-gradient(135deg, #2DD4A0, #5EECC0);
+  background: linear-gradient(135deg, #0D9668, #5EECC0);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -139,16 +143,17 @@
   gap: 3px;
 }
 
+/* 25+, 12, 100% = mint green — on dark background */
 .stat-value {
   font-size: 24px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--accent-text);
+  color: #0D9668;
 }
 
 .stat-label {
   font-size: 11.5px;
-  color: #A6B3C2;
+  color: var(--text-on-dark-sub);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }

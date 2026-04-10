@@ -1,26 +1,40 @@
 import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import DashboardPage from './pages/Dashboard/DashboardPage';
 import LoginPage from './pages/LoginPage';
 import './styles/variables.css';
 
 /* ============================================================
-   App
-   Root of the application.
-   Later you'll add React Router here and replace LoginPage
-   with your route definitions.
-
-   Example with React Router (once you add more pages):
-
-     import { BrowserRouter, Routes, Route } from 'react-router-dom';
-     import Dashboard from './pages/Dashboard/DashboardPage';
-
-     <BrowserRouter>
-       <Routes>
-         <Route path="/"          element={<LoginPage />} />
-         <Route path="/dashboard" element={<Dashboard />} />
-       </Routes>
-     </BrowserRouter>
+  App.jsx
+  Root — sets up routes for Login and Dashboard.
    ============================================================ */
+   // Simple auth check — wraps protected pages
+   function ProtectedRoute({ children }) {
+     const token = localStorage.getItem('token');
+     if (!token) return <Navigate to="/" replace />;
+     return children;
+   }
 
 export default function App() {
-  return <LoginPage />;
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LoginPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        {/* Future routes */}
+        {/* <Route path="/invoices" element={<ProtectedRoute><InvoiceListPage /></ProtectedRoute>} /> */}
+        {/* <Route path="/invoices/:id" element={<ProtectedRoute><InvoiceDetailPage /></ProtectedRoute>} /> */}
+          
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
