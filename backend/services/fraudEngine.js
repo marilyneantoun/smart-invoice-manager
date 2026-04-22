@@ -148,5 +148,76 @@ async function runFraudAnalysis(conn, invoiceId, invoice) {
       }
     }
   } 
-  //Rules 5-12 would be implemented here in a similar fashion, checking conditions and calling trigger() as needed.
+  // ── Rule 5: Velocity Spike Detection ──
+  if (ruleMap[5]) {
+    // Count invoices from same vendor in last 30 days
+    const [velRows] = await conn.query(
+      `SELECT COUNT(*) AS recent_count
+       FROM invoice
+       WHERE vendor_id = ?
+         AND invoice_id != ?
+         AND uploaded_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`,
+      [invoice.vendor_id, invoiceId]
+    );
+    // If 3+ invoices from same vendor in 30 days, flag velocity spike
+    if (velRows[0].recent_count >= 3) {
+      trigger(5,
+        `Velocity spike: ${velRows[0].recent_count + 1} invoices from ${vendor?.vendor_name || 'this vendor'} within the last 30 days.`
+      );
+    }
+  }
+
+  // ── Rule 6: Future-Dated Invoice ──
+  if (ruleMap[6]) {
+    const invoiceDate = new Date(invoice.invoice_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (invoiceDate > today) {
+      const formattedDate = invoiceDate.toISOString().split('T')[0];
+      const todayFormatted = today.toISOString().split('T')[0];
+      trigger(6,
+        `Invoice date ${formattedDate} is in the future. Current processing date is ${todayFormatted}.`
+      );
+    }
+  }
+
+  // ── Rule 7: Currency Mismatch ──
+  if (ruleMap[7] && vendor) {
+    if (vendor.default_currency && invoice.currency !== vendor.default_currency) {
+      trigger(7,
+        `Invoice currency ${invoice.currency} does not match vendor ${vendor.vendor_name} default currency ${vendor.default_currency}. This may indicate a legitimate cross-border transaction or data entry error.`
+      );
+    }
+  }
+
+  // ── Rule 8: Weekend or Holiday Invoice ──
+  if (ruleMap[8]) {
+    const invoiceDate = new Date(invoice.invoice_date);
+    const dayOfWeek = invoiceDate.getDay(); // 0=Sun, 6=Sat
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      const dayName = dayOfWeek === 0 ? 'Sunday' : 'Saturday';
+      trigger(8,
+        `Invoice dated ${invoice.invoice_date} (${dayName}) was issued on a weekend or holiday.`
+      );
+    }
+  }
+
+  // ── Rule 9: Amount Below Approval Threshold ──
+  if (ruleMap[9]) {
+    const threshold = parseFloat(settings.approval_threshold) || 5000;
+    // "Slightly below" = within 5% below threshold
+    const lowerBound = threshold * 0.95;
+    if (invoice.amount >= lowerBound && invoice.amount < threshold) {
+      trigger(9,
+        `Amount ${invoice.currency} ${invoice.amount.toLocaleString()} is just below the approval threshold of ${invoice.currency} ${threshold.toLocaleString()}.`
+      );
+    }
+  }
+ 
+  
+  // ── Rules 10–12 and final score calculation will be added in next commit ──
+  return { risk_score: 0, risk_level: 'Low', triggered_rules: triggered };
+  
 } 
+module.exports = { runFraudAnalysis };

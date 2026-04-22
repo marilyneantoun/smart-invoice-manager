@@ -222,4 +222,90 @@ def parse_currency(text):
     # Default to USD if nothing found
     return 'USD'
 
-#/extract route and flask run block will be added in next commit
+
+
+# ==============================================================
+# POST /extract
+#
+# Accepts a file upload (field name: "file")
+# Returns JSON with extracted fields + raw text
+# ==============================================================
+@app.route('/extract', methods=['POST'])
+def extract():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided. Send as "file" field.'}), 400
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({'error': 'Empty filename.'}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({'error': f'Unsupported file type. Allowed: {", ".join(ALLOWED_EXTENSIONS)}'}), 400
+
+    # Save to a temporary file
+    ext = file.filename.rsplit('.', 1)[1].lower()
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=f'.{ext}')
+    file.save(tmp.name)
+    tmp.close()
+
+    try:
+        # Run OCR
+        if ext == 'pdf':
+            raw_text = extract_text_from_pdf(tmp.name)
+        else:
+            raw_text = extract_text_from_image(tmp.name)
+
+        # Check for OCR errors
+        if raw_text.startswith('[ERROR]'):
+            return jsonify({'error': raw_text}), 500
+
+        # Parse structured fields from raw text
+        vendor_name    = parse_vendor_name(raw_text)
+        invoice_number = parse_invoice_number(raw_text)
+        invoice_date   = parse_invoice_date(raw_text)
+        amount_result  = parse_amount(raw_text)
+        currency       = parse_currency(raw_text)
+
+        # amount_result is a tuple (display_str, numeric_value) or None
+        amount_display = amount_result[0] if amount_result else None
+        amount_numeric = amount_result[1] if amount_result else None
+
+        return jsonify({
+            'vendor_name':    vendor_name,
+            'invoice_number': invoice_number,
+            'invoice_date':   invoice_date,
+            'amount':         amount_numeric,          # numeric for DB / form field
+            'amount_display': amount_display,          # original string as in document
+            'currency':       currency,
+            'raw_text':       raw_text,
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': f'OCR processing failed: {str(e)}'}), 500
+
+    finally:
+        # Clean up temp file
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+
+# ==============================================================
+# GET /health — quick health check
+# ==============================================================
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({
+        'status':  'ok',
+        'service': 'InvoiceShield OCR (Tesseract)',
+    }), 200
+
+
+# ==============================================================
+# Run the Flask server
+# ==============================================================
+if __name__ == '__main__':
+    print('🔍 InvoiceShield OCR service starting on http://localhost:5001')
+    app.run(host='0.0.0.0', port=5001, debug=True)
