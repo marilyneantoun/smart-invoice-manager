@@ -216,8 +216,53 @@ async function runFraudAnalysis(conn, invoiceId, invoice) {
   }
  
   
-  // ── Rules 10–12 and final score calculation will be added in next commit ──
-  return { risk_score: 0, risk_level: 'Low', triggered_rules: triggered };
-  
+ // ── Rule 10: Round Number No Itemization ── (often disabled)
+  if (ruleMap[10]) {
+    if (invoice.amount % 1000 === 0 && invoice.amount >= 1000) {
+      trigger(10,
+        `Invoice total ${invoice.currency} ${invoice.amount.toLocaleString()} is a round number with no itemized line details.`
+      );
+    }
+  }
+
+  // ── Rule 11: Line Items Sum Mismatch ──
+  // Note: This requires line item data which we don't extract via basic OCR.
+  // Skipped for now — can be implemented when line-item parsing is added.
+
+  // ── Rule 12: VAT Inconsistency ── (often disabled)
+  // Requires VAT fields — skipped for basic implementation.
+
+  // ── OCR Correction bonus rule ──
+  // Not in the fraud_rule table, but the Phase 4 preview shows it.
+  // We handle it as a soft indicator only if was_corrected is true
+  // and there's a meaningful difference between OCR and saved amount.
+  // This won't be stored as a formal fraud_reason since there's no
+  // rule_id for it — but we can check if a "OCR Data Corrected" rule
+  // exists in the DB (it doesn't in the sample data, so this is a
+  // design decision for the demo).
+
+  // ── 5. Calculate total score ──
+  let totalScore = 0;
+  for (const t of triggered) {
+    totalScore += t.risk_weight;
+  }
+  // Cap at 100
+  totalScore = Math.min(totalScore, 100);
+
+  // ── 6. Determine risk level ──
+  let riskLevel;
+  if (totalScore <= settings.low_risk_max) {
+    riskLevel = 'Low';
+  } else if (totalScore <= settings.medium_risk_max) {
+    riskLevel = 'Medium';
+  } else {
+    riskLevel = 'High';
+  }
+
+  return {
+    risk_score:      totalScore,
+    risk_level:      riskLevel,
+    triggered_rules: triggered,
+  };
 } 
 module.exports = { runFraudAnalysis };
