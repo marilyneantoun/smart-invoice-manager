@@ -31,7 +31,7 @@ app.use(cors({
 // ---- Routes ----
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/invoices', invoiceRoutes);
+app.use('/api', invoiceRoutes);
 app.use('/api/vendors', vendorRoutes);
 
 // Health-check — useful to confirm the server is running

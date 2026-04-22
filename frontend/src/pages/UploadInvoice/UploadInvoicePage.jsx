@@ -523,12 +523,18 @@ function Phase2Review({
                 Amount <span className="required">*</span>
               </label>
               <input
-                className="form-input"
-                type="text"
-                inputMode="decimal"
-                placeholder="e.g. 3,500.00"
-                value={formData.amount ?? ''}
-                onChange={(e) => handleChange('amount', e.target.value)}
+                 className="form-input"
+                 type="text"
+                 inputMode="decimal"
+                 placeholder="e.g. 3,500.00"
+                 value={formData.amount ?? ''}
+                onChange={(e) => {
+                const val = e.target.value;
+                // Allow only digits, commas, and one decimal point
+                if (val === '' || /^[\d,]*\.?\d*$/.test(val)) {
+                handleChange('amount', val);
+                }
+                }}
               />
               {isModified('amount') && (
                 <div className="field-hint modified">
