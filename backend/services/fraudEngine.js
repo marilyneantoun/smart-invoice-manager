@@ -1,0 +1,268 @@
+// ============================================================
+// services/fraudEngine.js
+//
+// Rule-based fraud analysis engine.
+// Runs all active fraud rules against a submitted invoice
+// and returns a risk score, risk level, and triggered rules
+// with auto-generated reason text.
+//
+// Rules (from fraud_rule table):
+//   1  Exact Duplicate Invoice        (80 pts)
+//   2  Near Duplicate Invoice          (25 pts)
+//   3  Unapproved Vendor               (50 pts)
+//   4  Amount Anomaly Detection        (30 pts)
+//   5  Velocity Spike Detection        (20 pts)
+//   6  Future-Dated Invoice            (60 pts)
+//   7  Currency Mismatch               (20 pts)
+//   8  Weekend or Holiday Invoice       (5 pts)
+//   9  Amount Below Approval Threshold (10 pts)
+//  10  Round Number No Itemization     (10 pts) — disabled
+//  11  Line Items Sum Mismatch         (25 pts)
+//  12  VAT Inconsistency               (25 pts) — disabled
+//
+// Risk thresholds (from system_setting):
+//   Low:    0–30
+//   Medium: 31–60
+//   High:   61+
+//
+// Score is additive, capped at 100.
+// ============================================================
+
+/**
+ * Run the fraud analysis engine against a single invoice.
+ *
+ * @param {Object} conn       - MySQL connection (within a transaction)
+ * @param {number} invoiceId  - The newly inserted invoice_id
+ * @param {Object} invoice    - Invoice data for rule evaluation:
+ *   { vendor_id, invoice_number, invoice_date, amount, currency,
+ *     was_corrected, extracted_amount }
+ *
+ * @returns {Object} { risk_score, risk_level, triggered_rules[] }
+ *   where each triggered_rule = { rule_id, rule_name, risk_weight, reason_text }
+ */
+async function runFraudAnalysis(conn, invoiceId, invoice) {
+  // ── 1. Fetch all active fraud rules ──
+  const [activeRules] = await conn.query(
+    'SELECT rule_id, rule_name, risk_weight FROM fraud_rule WHERE is_active = TRUE ORDER BY rule_id'
+  );
+
+  // Build a lookup map: rule_id → { rule_name, risk_weight }
+  const ruleMap = {};
+  for (const r of activeRules) {
+    ruleMap[r.rule_id] = r;
+  }
+
+  // ── 2. Fetch system settings for thresholds ──
+  const [settingsRows] = await conn.query(
+    'SELECT low_risk_max, medium_risk_max, approval_threshold FROM system_setting LIMIT 1'
+  );
+  const settings = settingsRows[0] || { low_risk_max: 30, medium_risk_max: 60, approval_threshold: 5000 };
+
+  // ── 3. Fetch vendor info ──
+  const [vendorRows] = await conn.query(
+    'SELECT vendor_name, default_currency, is_approved FROM vendor WHERE vendor_id = ? LIMIT 1',
+    [invoice.vendor_id]
+  );
+  const vendor = vendorRows[0];
+
+  // ── 4. Run each rule ──
+  const triggered = [];
+
+  // Helper to add a triggered rule
+  const trigger = (ruleId, reasonText) => {
+    if (ruleMap[ruleId]) {
+      triggered.push({
+        rule_id:     ruleId,
+        rule_name:   ruleMap[ruleId].rule_name,
+        risk_weight: ruleMap[ruleId].risk_weight,
+        reason_text: reasonText,
+      });
+    }
+  };
+
+  // ── Rule 1: Exact Duplicate Invoice ──
+  if (ruleMap[1]) {
+    const [dupes] = await conn.query(
+      `SELECT invoice_id FROM invoice
+       WHERE vendor_id = ? AND invoice_number = ? AND invoice_id != ?
+       LIMIT 1`,
+      [invoice.vendor_id, invoice.invoice_number, invoiceId]
+    );
+    if (dupes.length > 0) {
+      trigger(1,
+        `Duplicate invoice detected: ${invoice.invoice_number} already exists for this vendor (invoice #${dupes[0].invoice_id}).`
+      );
+    }
+  }
+
+  // ── Rule 2: Near Duplicate Invoice ──
+  if (ruleMap[2]) {
+    // Same vendor, similar amount (within 5%), within 7 days
+    const [nearDupes] = await conn.query(
+      `SELECT invoice_id, invoice_number, amount, invoice_date
+       FROM invoice
+       WHERE vendor_id = ?
+         AND invoice_id != ?
+         AND ABS(DATEDIFF(invoice_date, ?)) <= 7
+         AND ABS(amount - ?) / GREATEST(amount, 1) <= 0.05
+       LIMIT 1`,
+      [invoice.vendor_id, invoiceId, invoice.invoice_date, invoice.amount]
+    );
+    if (nearDupes.length > 0) {
+      const nd = nearDupes[0];
+      trigger(2,
+        `Near-duplicate detected: invoice ${nd.invoice_number} from same vendor with amount $${nd.amount} dated ${nd.invoice_date} is within 5% amount and 7 days.`
+      );
+    }
+  }
+
+  // ── Rule 3: Unapproved Vendor ──
+  if (ruleMap[3] && vendor) {
+    if (!vendor.is_approved) {
+      trigger(3,
+        `Vendor ${vendor.vendor_name} is not approved in the system.`
+      );
+    }
+  }
+
+  // ── Rule 4: Amount Anomaly Detection ──
+  if (ruleMap[4] && vendor) {
+    // Calculate vendor's average and std dev from previous invoices
+    const [stats] = await conn.query(
+      `SELECT AVG(amount) AS avg_amount, STDDEV(amount) AS std_amount, COUNT(*) AS inv_count
+       FROM invoice
+       WHERE vendor_id = ? AND invoice_id != ?`,
+      [invoice.vendor_id, invoiceId]
+    );
+    const s = stats[0];
+    if (s && s.inv_count >= 2) {
+      const avg = parseFloat(s.avg_amount);
+      const std = parseFloat(s.std_amount) || 1;
+      const zScore = Math.abs(invoice.amount - avg) / std;
+
+      if (zScore > 2) {
+        const ratio = (invoice.amount / avg).toFixed(1);
+        trigger(4,
+          `Invoice amount of ${invoice.currency} ${invoice.amount.toLocaleString()} exceeds vendor average by more than 2× standard deviation. ${vendor.vendor_name} average: ${invoice.currency} ${avg.toFixed(2)}. Ratio: ${ratio}x.`
+        );
+      }
+    }
+  } 
+  // ── Rule 5: Velocity Spike Detection ──
+  if (ruleMap[5]) {
+    // Count invoices from same vendor in last 30 days
+    const [velRows] = await conn.query(
+      `SELECT COUNT(*) AS recent_count
+       FROM invoice
+       WHERE vendor_id = ?
+         AND invoice_id != ?
+         AND uploaded_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)`,
+      [invoice.vendor_id, invoiceId]
+    );
+    // If 3+ invoices from same vendor in 30 days, flag velocity spike
+    if (velRows[0].recent_count >= 3) {
+      trigger(5,
+        `Velocity spike: ${velRows[0].recent_count + 1} invoices from ${vendor?.vendor_name || 'this vendor'} within the last 30 days.`
+      );
+    }
+  }
+
+  // ── Rule 6: Future-Dated Invoice ──
+  if (ruleMap[6]) {
+    const invoiceDate = new Date(invoice.invoice_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (invoiceDate > today) {
+      const formattedDate = invoiceDate.toISOString().split('T')[0];
+      const todayFormatted = today.toISOString().split('T')[0];
+      trigger(6,
+        `Invoice date ${formattedDate} is in the future. Current processing date is ${todayFormatted}.`
+      );
+    }
+  }
+
+  // ── Rule 7: Currency Mismatch ──
+  if (ruleMap[7] && vendor) {
+    if (vendor.default_currency && invoice.currency !== vendor.default_currency) {
+      trigger(7,
+        `Invoice currency ${invoice.currency} does not match vendor ${vendor.vendor_name} default currency ${vendor.default_currency}. This may indicate a legitimate cross-border transaction or data entry error.`
+      );
+    }
+  }
+
+  // ── Rule 8: Weekend or Holiday Invoice ──
+  if (ruleMap[8]) {
+    const invoiceDate = new Date(invoice.invoice_date);
+    const dayOfWeek = invoiceDate.getDay(); // 0=Sun, 6=Sat
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      const dayName = dayOfWeek === 0 ? 'Sunday' : 'Saturday';
+      trigger(8,
+        `Invoice dated ${invoice.invoice_date} (${dayName}) was issued on a weekend or holiday.`
+      );
+    }
+  }
+
+  // ── Rule 9: Amount Below Approval Threshold ──
+  if (ruleMap[9]) {
+    const threshold = parseFloat(settings.approval_threshold) || 5000;
+    // "Slightly below" = within 5% below threshold
+    const lowerBound = threshold * 0.95;
+    if (invoice.amount >= lowerBound && invoice.amount < threshold) {
+      trigger(9,
+        `Amount ${invoice.currency} ${invoice.amount.toLocaleString()} is just below the approval threshold of ${invoice.currency} ${threshold.toLocaleString()}.`
+      );
+    }
+  }
+ 
+  
+ // ── Rule 10: Round Number No Itemization ── (often disabled)
+  if (ruleMap[10]) {
+    if (invoice.amount % 1000 === 0 && invoice.amount >= 1000) {
+      trigger(10,
+        `Invoice total ${invoice.currency} ${invoice.amount.toLocaleString()} is a round number with no itemized line details.`
+      );
+    }
+  }
+
+  // ── Rule 11: Line Items Sum Mismatch ──
+  // Note: This requires line item data which we don't extract via basic OCR.
+  // Skipped for now — can be implemented when line-item parsing is added.
+
+  // ── Rule 12: VAT Inconsistency ── (often disabled)
+  // Requires VAT fields — skipped for basic implementation.
+
+  // ── OCR Correction bonus rule ──
+  // Not in the fraud_rule table, but the Phase 4 preview shows it.
+  // We handle it as a soft indicator only if was_corrected is true
+  // and there's a meaningful difference between OCR and saved amount.
+  // This won't be stored as a formal fraud_reason since there's no
+  // rule_id for it — but we can check if a "OCR Data Corrected" rule
+  // exists in the DB (it doesn't in the sample data, so this is a
+  // design decision for the demo).
+
+  // ── 5. Calculate total score ──
+  let totalScore = 0;
+  for (const t of triggered) {
+    totalScore += t.risk_weight;
+  }
+  // Cap at 100
+  totalScore = Math.min(totalScore, 100);
+
+  // ── 6. Determine risk level ──
+  let riskLevel;
+  if (totalScore <= settings.low_risk_max) {
+    riskLevel = 'Low';
+  } else if (totalScore <= settings.medium_risk_max) {
+    riskLevel = 'Medium';
+  } else {
+    riskLevel = 'High';
+  }
+
+  return {
+    risk_score:      totalScore,
+    risk_level:      riskLevel,
+    triggered_rules: triggered,
+  };
+} 
+module.exports = { runFraudAnalysis };

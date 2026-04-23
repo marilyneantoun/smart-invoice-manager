@@ -69,7 +69,7 @@ const NAV_SECTIONS = [
     title: 'Invoices',
     items: [
       { key: 'invoices',  label: 'Invoice List',    icon: 'invoices', path: '/invoices',       roles: ['Admin', 'Accountant', 'Viewer'] },
-      { key: 'upload',    label: 'Upload Invoice',  icon: 'upload',   path: '/upload-invoice', roles: ['Accountant'] },
+      { key: 'upload',    label: 'Upload Invoice',  icon: 'upload',   path: '/invoices/upload', roles: ['Accountant'] },
     ],
   },
   {
@@ -138,7 +138,7 @@ export default function Sidebar() {
                 {visibleItems.map(item => (
                   <button
                     key={item.key}
-                    className={`nav-btn ${location.pathname.startsWith(item.path) ? 'active' : ''}`}
+                    className={`nav-btn ${location.pathname === item.path ? 'active' : ''}`}
                     onClick={() => navigate(item.path)}
                   >
                     {icons[item.icon]}
