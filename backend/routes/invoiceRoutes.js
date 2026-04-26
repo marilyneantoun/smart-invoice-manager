@@ -414,6 +414,164 @@ router.put(
     }
   }
 );
+// ================================================================
+// GET /api/invoices
+// ----------------------------------------------------------------
+// Returns a paginated, filterable, sortable list of invoices for
+// the Invoice List page. Joins invoice → vendor → fraud_analysis
+// so the frontend can render vendor name and risk level/score in
+// a single round-trip.
+//
+// Query params (all optional):
+//   search   — matches invoice_number OR vendor_name (LIKE %term%)
+//   status   — Pending | Approved | Rejected | Flagged
+//   risk     — low | medium | high  (case-insensitive)
+//   vendor   — vendor_id (integer)
+//   date     — YYYY-MM-DD (filters on invoice_date = date)
+//   sort     — invoice_date | amount | status | risk_score | uploaded_at
+//   order    — asc | desc   (default desc)
+//   page     — 1-indexed page number (default 1)
+//   limit    — rows per page (default 10, max 100)
+//
+// Response shape:
+//   {
+//     invoices: [{
+//       invoice_id, invoice_number, vendor_id, vendor_name,
+//       invoice_date, amount, currency, status,
+//       risk_score, risk_level, uploaded_at
+//     }, ...],
+//     total: <total matching rows, ignoring pagination>,
+//     page: <current page>,
+//     limit: <rows per page>
+//   }
+//
+// Access: any authenticated role (Admin, Accountant, Viewer).
+// ================================================================
+router.get(
+  '/invoices',
+  protect,
+  async (req, res) => {
+    try {
+      // ── Parse & sanitise query params ──
+      const {
+        search = '',
+        status = '',
+        risk = '',
+        vendor = '',
+        date = '',
+        sort = 'uploaded_at',
+        order = 'desc',
+      } = req.query;
+
+      const page  = Math.max(1, parseInt(req.query.page)  || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
+      const offset = (page - 1) * limit;
+
+      // ── Whitelist sort fields & order direction (prevents SQL injection) ──
+      const sortMap = {
+        invoice_date: 'i.invoice_date',
+        amount:       'i.amount',
+        status:       'i.status',
+        risk_score:   'fa.risk_score',
+        uploaded_at:  'i.uploaded_at',
+      };
+      const sortColumn = sortMap[sort] || 'i.uploaded_at';
+      const sortOrder  = String(order).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+      // ── Build dynamic WHERE clause ──
+      const where  = [];
+      const params = [];
+
+      if (search) {
+        where.push('(i.invoice_number LIKE ? OR v.vendor_name LIKE ?)');
+        params.push(`%${search}%`, `%${search}%`);
+      }
+
+      if (status) {
+        // Validate against the ENUM values to avoid leaking arbitrary input
+        const allowedStatus = ['Pending', 'Approved', 'Rejected', 'Flagged'];
+        if (allowedStatus.includes(status)) {
+          where.push('i.status = ?');
+          params.push(status);
+        }
+      }
+
+      if (risk) {
+        const riskCap = risk.charAt(0).toUpperCase() + risk.slice(1).toLowerCase();
+        const allowedRisk = ['Low', 'Medium', 'High'];
+        if (allowedRisk.includes(riskCap)) {
+          where.push('fa.risk_level = ?');
+          params.push(riskCap);
+        }
+      }
+
+      if (vendor) {
+        const vendorId = parseInt(vendor);
+        if (!isNaN(vendorId)) {
+          where.push('i.vendor_id = ?');
+          params.push(vendorId);
+        }
+      }
+
+      if (date) {
+        // Expect YYYY-MM-DD; let MySQL coerce the comparison
+        where.push('DATE(i.invoice_date) = ?');
+        params.push(date);
+      }
+
+      const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+      // ── Count total matching rows (for pagination) ──
+      const [countRows] = await pool.query(
+        `SELECT COUNT(*) AS total
+           FROM invoice i
+           JOIN vendor v          ON v.vendor_id = i.vendor_id
+           LEFT JOIN fraud_analysis fa ON fa.invoice_id = i.invoice_id
+          ${whereClause}`,
+        params
+      );
+      const total = countRows[0].total;
+
+      // ── Fetch the page of invoices ──
+      // Sort applied after WHERE; secondary sort on invoice_id for stable order.
+      // LIMIT/OFFSET inlined as integers (already validated above) — mysql2
+      // does not always interpolate them cleanly as bound params.
+      const [rows] = await pool.query(
+        `SELECT
+           i.invoice_id,
+           i.invoice_number,
+           i.vendor_id,
+           v.vendor_name,
+           i.invoice_date,
+           i.amount,
+           i.currency,
+           i.status,
+           fa.risk_score,
+           fa.risk_level,
+           i.uploaded_at
+         FROM invoice i
+         JOIN vendor v          ON v.vendor_id = i.vendor_id
+         LEFT JOIN fraud_analysis fa ON fa.invoice_id = i.invoice_id
+         ${whereClause}
+         ORDER BY ${sortColumn} ${sortOrder}, i.invoice_id DESC
+         LIMIT ${limit} OFFSET ${offset}`,
+        params
+      );
+
+      return res.status(200).json({
+        invoices: rows,
+        total,
+        page,
+        limit,
+      });
+
+    } catch (err) {
+      console.error('Invoice list error:', err);
+      return res.status(500).json({ message: 'Failed to load invoices.' });
+    }
+  }
+);
+
 
 
 module.exports = router;

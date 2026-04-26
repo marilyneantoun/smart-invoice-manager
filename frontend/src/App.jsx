@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import LoginPage from './pages/LoginPage';
+import InvoiceListPage from './pages/InvoiceList/InvoiceListPage';
 import UploadInvoicePage from './pages/UploadInvoice/UploadInvoicePage';
 import './styles/variables.css';
 
@@ -29,10 +30,19 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/invoices/upload" element={
+        <Route
+         path="/invoices/upload"
+         element={
           <ProtectedRoute>
             <UploadInvoicePage />
           </ProtectedRoute>} />
+
+        <Route path="/invoices" 
+        element={
+        <ProtectedRoute>
+          <InvoiceListPage />
+          </ProtectedRoute>} />
+          
         {/* Future routes */}
         {/* <Route path="/invoices" element={<ProtectedRoute><InvoiceListPage /></ProtectedRoute>} /> */}
         {/* <Route path="/invoices/:id" element={<ProtectedRoute><InvoiceDetailPage /></ProtectedRoute>} /> */}
@@ -40,6 +50,7 @@ export default function App() {
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      
     </BrowserRouter>
   );
 }
