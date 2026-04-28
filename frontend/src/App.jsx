@@ -4,6 +4,7 @@ import DashboardPage from './pages/Dashboard/DashboardPage';
 import LoginPage from './pages/LoginPage';
 import InvoiceListPage from './pages/InvoiceList/InvoiceListPage';
 import UploadInvoicePage from './pages/UploadInvoice/UploadInvoicePage';
+import InvoiceDetailPage from './pages/InvoiceDetail/InvoiceDetailPage';
 import './styles/variables.css';
 
 /* ============================================================
@@ -43,9 +44,14 @@ export default function App() {
           <InvoiceListPage />
           </ProtectedRoute>} />
           
-        {/* Future routes */}
-        {/* <Route path="/invoices" element={<ProtectedRoute><InvoiceListPage /></ProtectedRoute>} /> */}
-        {/* <Route path="/invoices/:id" element={<ProtectedRoute><InvoiceDetailPage /></ProtectedRoute>} /> */}
+       <Route path="/invoices/:id"
+       element={
+       <ProtectedRoute>
+        <InvoiceDetailPage />
+        </ProtectedRoute>}  />
+
+        {/* Future routes — uncomment as pages are built
+        <Route path="/admin"  element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />

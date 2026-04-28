@@ -1,0 +1,588 @@
+/* ============================================================
+   InvoiceDetailPage.css
+   Single invoice detail view styles.
+
+   Design tokens (--bg-deep, --accent, --text-*, etc.) are inherited
+   from variables.css — this file is purely page-specific layout.
+
+   The shared sidebar comes from AppLayout/Sidebar — no sidebar
+   styles defined here.
+   ============================================================ */
+
+/* ── Page container ── */
+.invd-page {
+  padding: 24px 36px 60px;
+  max-width: 1400px;
+}
+
+/* ── Loading / error states ── */
+.invd-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  font-size: 14px;
+  color: var(--text-tertiary);
+  flex-direction: column;
+  gap: 14px;
+}
+.invd-state-error { color: var(--red); }
+.invd-retry {
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.invd-retry:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Breadcrumb ── */
+.invd-page .breadcrumb {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 18px;
+}
+.invd-page .breadcrumb a {
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.invd-page .breadcrumb a:hover { color: var(--accent); }
+.invd-page .breadcrumb .sep { margin: 0 6px; color: var(--text-muted); }
+.invd-page .breadcrumb .current { color: var(--text-secondary); }
+
+/* ============================================================
+   Header — invoice number in green + neutral metadata row
+   ============================================================ */
+.invd-page .invoice-header { margin-bottom: 28px; }
+
+.invd-page .invoice-num {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 32px;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.invd-page .invoice-vendor {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.invd-page .invoice-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+.invd-page .meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.invd-page .meta-item svg {
+  width: 13px; height: 13px;
+  color: var(--text-muted);
+}
+.invd-page .meta-item .label {
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+.invd-page .meta-item .value { color: var(--text-secondary); }
+.invd-page .meta-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Section heading
+   ============================================================ */
+.invd-page .section { margin-top: 36px; }
+.invd-page .section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.invd-page .section-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+}
+.invd-page .section-rule {
+  height: 1px;
+  background: var(--border-soft, rgba(15, 23, 42, 0.07));
+  margin-bottom: 20px;
+}
+
+/* ── Two-column area ── */
+.invd-page .two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+
+/* ============================================================
+   Original Document
+   ============================================================ */
+.invd-page .doc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.invd-page .doc-filename {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+}
+.invd-page .download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.invd-page .download-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.invd-page .download-btn svg { width: 12px; height: 12px; }
+
+.invd-page .doc-preview {
+  background: var(--bg-surface);
+  border-radius: 10px;
+  aspect-ratio: 1 / 1.15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-soft, rgba(15, 23, 42, 0.07));
+}
+.invd-page .doc-preview svg {
+  width: 36px; height: 36px;
+  color: var(--text-muted);
+}
+.invd-page .doc-preview .label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.invd-page .doc-preview .sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Live PDF / image frame — replaces the placeholder once a file exists */
+.invd-page .doc-frame {
+  width: 100%;
+  aspect-ratio: 1 / 1.15;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft, rgba(15, 23, 42, 0.07));
+  background: var(--bg-card);
+  overflow: hidden;
+  display: block;
+}
+iframe.invd-page .doc-frame,
+.invd-page iframe.doc-frame {
+  border: 1px solid var(--border-soft, rgba(15, 23, 42, 0.07));
+}
+.invd-page .doc-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: var(--bg-surface);
+  display: block;
+}
+
+/* ============================================================
+   Compare table
+   ============================================================ */
+.invd-page .compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.invd-page .compare-table thead tr {
+  background: rgba(13, 150, 104, 0.07);
+}
+.invd-page .compare-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-soft, rgba(15, 23, 42, 0.07));
+}
+.invd-page .compare-table td {
+  padding: 11px 14px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-soft, rgba(15, 23, 42, 0.07));
+}
+.invd-page .compare-table tbody tr:nth-child(even) {
+  background: rgba(13, 150, 104, 0.025);
+}
+.invd-page .compare-table tbody tr:last-child td { border-bottom: none; }
+.invd-page .compare-table .field-name {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.invd-page .compare-table .match-yes { color: var(--green, #0D9668); }
+.invd-page .compare-table .match-no  { color: var(--orange, #C2410C); }
+
+.invd-page .raw-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  padding: 0;
+}
+.invd-page .raw-toggle:hover { color: var(--accent-hover); }
+.invd-page .raw-toggle svg { width: 11px; height: 11px; }
+
+.invd-page .raw-ocr {
+  margin-top: 12px;
+  padding: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft, rgba(15, 23, 42, 0.07));
+  border-radius: 8px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+/* ============================================================
+   Risk summary
+   ============================================================ */
+.invd-page .risk-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border-soft, rgba(15, 23, 42, 0.07));
+  border-bottom: 1px solid var(--border-soft, rgba(15, 23, 42, 0.07));
+}
+.invd-page .risk-ring {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  position: relative;
+  flex-shrink: 0;
+}
+.invd-page .risk-ring::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  background: var(--bg-deep);
+  border-radius: 50%;
+}
+.invd-page .risk-ring span {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  line-height: 1;
+}
+.invd-page .risk-info .level {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.invd-page .risk-info .desc {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+
+/* ── Triggered rule list ── */
+.invd-page .rule-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.invd-page .rule-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-soft, rgba(15, 23, 42, 0.07));
+}
+.invd-page .rule-row:last-child { border-bottom: none; padding-bottom: 0; }
+.invd-page .rule-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.invd-page .rule-name::before {
+  content: "";
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+.invd-page .rule-reason {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.invd-page .rule-weight {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Take Action
+   ============================================================ */
+.invd-page .take-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.invd-page .ta-helper {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 14px;
+}
+.invd-page .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid;
+  background: var(--bg-card);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.invd-page .btn svg { width: 13px; height: 13px; }
+.invd-page .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.invd-page .btn-approve  { color: var(--green, #0D9668); border-color: rgba(13, 150, 104, 0.35); }
+.invd-page .btn-approve:hover:not(:disabled) { background: var(--accent-soft); }
+.invd-page .btn-reject   { color: var(--red, #9B2C3D); border-color: rgba(155, 44, 61, 0.35); }
+.invd-page .btn-reject:hover:not(:disabled)  { background: rgba(155, 44, 61, 0.06); }
+.invd-page .btn-pending  { color: var(--text-secondary); border-color: var(--border-medium); }
+.invd-page .btn-pending:hover:not(:disabled) { background: var(--bg-surface); }
+.invd-page .btn-flag     { color: var(--orange, #C2410C); border-color: rgba(194, 65, 12, 0.35); }
+.invd-page .btn-flag:hover:not(:disabled)    { background: rgba(194, 65, 12, 0.06); }
+
+.invd-page .back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.invd-page .back-link:hover { color: var(--accent); }
+.invd-page .back-link svg { width: 12px; height: 12px; }
+
+/* ============================================================
+   Audit Trail timeline
+   ============================================================ */
+.invd-page .timeline {
+  position: relative;
+  padding-left: 26px;
+}
+.invd-page .timeline::before {
+  content: "";
+  position: absolute;
+  left: 9px; top: 6px; bottom: 6px;
+  width: 1px;
+  background: var(--accent-soft);
+}
+.invd-page .tl-entry {
+  position: relative;
+  padding-bottom: 22px;
+}
+.invd-page .tl-entry:last-child { padding-bottom: 0; }
+.invd-page .tl-icon {
+  position: absolute;
+  left: -26px;
+  top: 0;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--bg-deep);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.invd-page .tl-icon svg { width: 10px; height: 10px; }
+.invd-page .tl-action {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.invd-page .tl-transition {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+.invd-page .tl-arrow { color: var(--text-muted); margin: 0 4px; }
+.invd-page .tl-reason {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+.invd-page .tl-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.invd-page .tl-empty {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+/* ============================================================
+   Reason modal
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+  backdrop-filter: blur(2px);
+}
+.modal {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 24px 26px 22px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+}
+.modal-title {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 18px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.modal-helper {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.modal-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.modal-textarea:focus { border-color: var(--accent); }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.modal-cancel,
+.modal-submit {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+  border: 1px solid;
+}
+.modal-cancel {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border-color: var(--border-medium);
+}
+.modal-cancel:hover:not(:disabled) { background: var(--bg-surface); }
+.modal-submit {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.modal-submit:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.modal-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.modal-cancel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1100px) {
+  .invd-page .two-col { grid-template-columns: 1fr; gap: 32px; }
+}
+@media (max-width: 700px) {
+  .invd-page { padding: 18px 18px 50px; }
+  .invd-page .invoice-num { font-size: 26px; }
+}
