@@ -5,6 +5,7 @@
 .panel-right {
   width: 500px;
   min-width: 500px;
+  flex-shrink:0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -81,16 +82,15 @@
   color: var(--text-secondary);
 }
 
-/* ---- Input wrapper ---- */
 .input-wrap {
   position: relative;
-  display: flex;
-  align-items: center;
 }
 
 .input-wrap .ico {
   position: absolute;
   left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--text-muted);
   pointer-events: none;
   transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -103,7 +103,7 @@
 
 .form-input {
   width: 100%;
-  padding: 12px 14px 12px 42px;
+  padding: 12px 14px 12px 44px !important;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
@@ -130,6 +130,17 @@
   background: var(--bg-input-hover);
 }
 
+/* Override Chrome/Edge autofill yellow background */
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus,
+.form-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-input) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  caret-color: var(--text-primary);
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 .form-input.has-error {
   border-color: var(--danger);
   box-shadow: 0 0 0 3px var(--danger-soft);
@@ -139,6 +150,8 @@
 .eye-toggle {
   position: absolute;
   right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   color: var(--text-muted);
@@ -311,11 +324,54 @@
 @keyframes spin        { to { transform: rotate(360deg); } }
 
 /* ---- Responsive ---- */
-@media (max-width: 900px) {
-  .panel-right { width: 100%; min-width: unset; border-left: none; border-top: 1px solid var(--border-subtle); padding: 36px 24px 56px; }
+
+/* Smaller laptops — narrow the right panel slightly */
+@media (max-width: 1200px) {
+  .panel-right {
+    width: 440px;
+    min-width: 440px;
+    padding: 40px 36px;
+  }
 }
 
-@media (max-width: 480px) {
-  .panel-right { padding: 28px 18px 48px; }
+/* Tablets — narrow further */
+@media (max-width: 1024px) {
+  .panel-right {
+    width: 400px;
+    min-width: 400px;
+    padding: 36px 32px;
+  }
+  .login-container { max-width: 340px; }
+  .login-header h2 { font-size: 22px; }
+}
+
+/* Mobile — full width, stacked under left panel */
+@media (max-width: 900px) {
+  .panel-right {
+    width: 100%;
+    min-width: 0;             /* important — was unset, now explicitly 0 */
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+    padding: 36px 24px 56px;
+  }
+  .login-container { max-width: 420px; }
+}
+
+/* Small mobile */
+@media (max-width: 600px) {
+  .panel-right { padding: 32px 20px 48px; }
   .login-container { max-width: 100%; }
+  .login-header { margin-bottom: 24px; }
+  .login-header h2 { font-size: 20px; }
+  .form-input { font-size: 14px; padding: 11px 14px 11px 42px !important; }
+  .field { margin-bottom: 16px; }
+  .btn-submit { padding: 13px; font-size: 14px; }
+}
+
+/* Very small phones */
+@media (max-width: 380px) {
+  .panel-right { padding: 24px 16px 40px; }
+  .login-header h2 { font-size: 18px; }
+  .form-options { flex-wrap: wrap; gap: 10px; } /* prevents Remember me + Forgot from overlapping */
+  .version-tag { display: none; }               /* hide on tiny screens to free space */
 }
