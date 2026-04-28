@@ -202,8 +202,12 @@ router.post(
         return res.status(400).json({ message: 'Invoice file is required.' });
       }
 
-      // Make stored path relative for portability
-      const storedPath = filePath.replace(/\\/g, '/');
+      // Convert absolute OS path → URL path that matches the /uploads static route.
+     const absolutePath = filePath.replace(/\\/g, '/');
+     const uploadsIdx = absolutePath.indexOf('/uploads/');
+     const storedPath = uploadsIdx >= 0
+     ? absolutePath.substring(uploadsIdx)
+     : '/' + absolutePath.replace(/^\/+/, '');
 
       // ── Step 1: Save invoice record ──
       const [invoiceResult] = await conn.query(
@@ -571,7 +575,124 @@ router.get(
     }
   }
 );
+// ================================================================
+// GET /api/invoices/:id
+// ----------------------------------------------------------------
+// Returns the full invoice detail payload used by the
+// InvoiceDetailPage on the frontend.
+// ================================================================
+router.get(
+  '/invoices/:id',
+  protect,
+  async (req, res) => {
+    const invoiceId = req.params.id;
 
+    try {
+      // ── 1. Invoice + vendor + uploader ──
+      const [invoiceRows] = await pool.query(
+        `SELECT
+            i.invoice_id,
+            i.invoice_number,
+            i.invoice_date,
+            i.amount,
+            i.currency,
+            i.status,
+            i.was_corrected_at_review,
+            i.file_type,
+            i.original_file_name,
+            i.stored_file_path,
+            i.uploaded_at,
+            v.vendor_id,
+            v.vendor_name,
+            v.is_approved AS vendor_is_approved,
+            u.full_name AS uploaded_by_name
+         FROM invoice i
+         LEFT JOIN vendor v ON v.vendor_id = i.vendor_id
+         LEFT JOIN user u   ON u.user_id   = i.uploaded_by
+         WHERE i.invoice_id = ?
+         LIMIT 1`,
+        [invoiceId]
+      );
 
+      if (!invoiceRows[0]) {
+        return res.status(404).json({ message: 'Invoice not found.' });
+      }
+      const invoice = invoiceRows[0];
+
+      // ── 2. OCR result ──
+      const [ocrRows] = await pool.query(
+        `SELECT
+            extracted_vendor_name,
+            extracted_invoice_number,
+            extracted_invoice_date,
+            extracted_amount,
+            extracted_currency,
+            raw_text
+         FROM ocr_result
+         WHERE invoice_id = ?
+         LIMIT 1`,
+        [invoiceId]
+      );
+      const ocrResult = ocrRows[0] || null;
+
+      // ── 3. Fraud analysis (latest) ──
+      const [analysisRows] = await pool.query(
+        `SELECT analysis_id, risk_score, risk_level, analyzed_at
+         FROM fraud_analysis
+         WHERE invoice_id = ?
+         ORDER BY analyzed_at DESC
+         LIMIT 1`,
+        [invoiceId]
+      );
+      const fraudAnalysis = analysisRows[0] || null;
+
+      // ── 4. Triggered fraud rules ──
+      let triggeredRules = [];
+      if (fraudAnalysis) {
+        const [ruleRows] = await pool.query(
+      `SELECT
+      fr.rule_name,
+      fr.risk_weight AS weight,
+      fre.reason_text
+     FROM fraud_reason fre
+     INNER JOIN fraud_rule fr ON fr.rule_id = fre.rule_id
+     WHERE fre.analysis_id = ?
+     ORDER BY fr.risk_weight DESC`,
+    [fraudAnalysis.analysis_id]
+  );
+        triggeredRules = ruleRows;
+      }
+
+      // ── 5. Invoice history ──
+      const [historyRows] = await pool.query(
+        `SELECT
+            ih.history_id,
+            ih.action_type,
+            ih.old_status,
+            ih.new_status,
+            ih.reason,
+            ih.changed_at,
+            u.full_name AS changed_by_name
+         FROM invoice_history ih
+         LEFT JOIN user u ON u.user_id = ih.changed_by
+         WHERE ih.invoice_id = ?
+         ORDER BY ih.changed_at ASC`,
+        [invoiceId]
+      );
+
+      return res.status(200).json({
+        invoice,
+        ocr_result:      ocrResult,
+        fraud_analysis:  fraudAnalysis,
+        triggered_rules: triggeredRules,
+        history:         historyRows,
+      });
+
+    } catch (err) {
+      console.error('Invoice fetch error:', err);
+      return res.status(500).json({ message: 'Failed to load invoice.' });
+    }
+  }
+);
 
 module.exports = router;

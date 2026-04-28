@@ -8,6 +8,7 @@ require('dotenv').config();
 const pool = require('./config/db');
 const express      = require('express');
 const cors         = require('cors');
+const path         = require('path');
 const authRoutes   = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const errorHandler = require('./middleware/errorHandler');
@@ -28,6 +29,9 @@ app.use(cors({
   credentials: true,
 }));
 
+// Serve uploaded invoice files as static assets (for PDF/image preview)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // ---- Routes ----
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -38,6 +42,7 @@ app.use('/api/vendors', vendorRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'InvoiceShield API is running.' });
 });
+
 //db connection test
 app.get('/api/test-db', async (req, res) => {
   try {
