@@ -81,17 +81,53 @@ def extract_text_from_pdf(pdf_path):
 def parse_vendor_name(text):
     """
     Extract vendor name — typically the first non-empty line of the invoice.
+    Strips common invoice header keywords (INVOICE, BILL, RECEIPT, etc.)
+    that may appear next to the vendor name in styled headers.
     """
+    # Keywords that often appear in invoice header banners next to the vendor name
+    HEADER_KEYWORDS = [
+        'TAX INVOICE',
+        'COMMERCIAL INVOICE',
+        'PROFORMA INVOICE',
+        'CREDIT NOTE',
+        'DEBIT NOTE',
+        'INVOICE',
+        'RECEIPT',
+        'BILL',
+        'STATEMENT',
+        'QUOTATION',
+    ]
+
     lines = [l.strip() for l in text.split('\n') if l.strip()]
-    if lines:
-        # The first meaningful line is usually the company name
-        # Skip lines that are just "Invoice" or similar headers
-        for line in lines:
-            lower = line.lower()
-            if lower in ('invoice', 'bill', 'receipt', 'tax invoice', 'commercial invoice'):
-                continue
-            # Return the first real line as vendor name
-            return line
+    if not lines:
+        return None
+
+    for line in lines:
+        cleaned = line
+
+        # Strip header keywords (case-insensitive, longest first to catch
+        # multi-word phrases like "TAX INVOICE" before "INVOICE")
+        for kw in HEADER_KEYWORDS:
+            cleaned = re.sub(
+                rf'\b{re.escape(kw)}\b',
+                '',
+                cleaned,
+                flags=re.IGNORECASE
+            )
+
+        # Collapse extra whitespace left behind by the removal
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+        # Skip if the line was *only* a header keyword (now empty)
+        if not cleaned:
+            continue
+
+        # Skip lines that are obviously not vendor names (numbers, dates, very short)
+        if len(cleaned) < 2:
+            continue
+
+        return cleaned
+
     return None
 
 
