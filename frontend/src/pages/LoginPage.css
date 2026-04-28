@@ -1,4 +1,17 @@
-.login-page{
-    display:flex;
-    height: 100vh;
+/* ============================================================
+   LoginPage.css — Parent layout (responsive)
+   ============================================================ */
+
+.login-page {
+  display: flex;
+  min-height: 100vh;        /* changed from height: 100vh — allows content to grow */
+  width: 100%;
+}
+
+/* On tablets and below, stack vertically */
+@media (max-width: 900px) {
+  .login-page {
+    flex-direction: column;
+    min-height: auto;
+  }
 }
