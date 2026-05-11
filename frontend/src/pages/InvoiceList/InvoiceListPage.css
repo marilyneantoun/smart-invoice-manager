@@ -1,347 +1,549 @@
 /* ============================================================
    pages/InvoiceList/InvoiceListPage.css
-   Scoped under .invoice-list-page so it doesn't bleed into
-   other pages or fight with global variables.
-   Design tokens come from /styles/variables.css; locally we
-   only declare the table-tint and status colors used here.
+   Minimal professional InvoiceShield invoice table UI.
    ============================================================ */
 
 .invoice-list-page {
-  /* Table-specific tints */
-  --row-tint-header: rgba(13, 150, 104, 0.10);
-  --row-tint-even:   rgba(13, 150, 104, 0.045);
-  --border-table:    rgba(15, 23, 42, 0.12);
+  --invoice-green: #0D9668;
+  --invoice-green-dark: #08724F;
+  --card-bg: #FFFFFF;
+  --header-bg: #F8FAF9;
+  --text-main: var(--text-primary, #151A18);
+  --text-body: var(--text-secondary, #4D5753);
+  --text-muted-local: var(--text-tertiary, #7D8783);
+  --border-light: rgba(15, 23, 42, 0.08);
+  --border-medium: rgba(15, 23, 42, 0.14);
+  --focus-ring: rgba(13, 150, 104, 0.13);
 
-  /* Status colors */
-  --status-green:  #0D9668;
-  --status-yellow: #B8860B;
-  --status-red:    #9B2C3D;
-  --status-orange: #C2410C;
-
-  padding: 28px 32px;
+  width: 100%;
   max-width: 1400px;
+  padding: 10px 8px 40px;
+  box-sizing: border-box;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 400;
+}
+
+.invoice-list-page *,
+.invoice-list-page *::before,
+.invoice-list-page *::after {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.invoice-list-page .page-header {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.invoice-list-page .page-heading {
+  min-width: 0;
 }
 
 .invoice-list-page .page-title {
-  font-family: 'Fraunces', serif;
-  font-size: 28px;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-  margin-bottom: 4px;
-  font-weight: 500;
-}
-.invoice-list-page .page-subtitle {
-  font-size: 13px;
-  color: var(--text-tertiary);
-  margin-bottom: 22px;
+  margin: 0;
+  color: var(--text-main);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: 0;
 }
 
-/* ============================================================
-   Filters row
-   ============================================================ */
+.invoice-list-page .page-subtitle {
+  margin: 6px 0 0;
+  color: var(--text-muted-local);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+/* Filters */
+
 .invoice-list-page .filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
   align-items: center;
-  margin-bottom: 16px;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 9px 10px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  border-top: 3px solid rgba(13, 150, 104, 0.78);
+  border-radius: 7px;
+  background: #FAFBFB;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+  box-sizing: border-box;
+}
+
+.invoice-list-page .filter-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.invoice-list-page .filter-control > svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  color: #7D8783;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.invoice-list-page .filter-control:focus-within > svg {
+  color: var(--invoice-green);
 }
 
 .invoice-list-page .search {
-  position: relative;
-  flex: 0 1 260px;
-  min-width: 200px;
+  flex: 0 0 350px;
+  min-width: 350px;
+  max-width: 350px;
 }
-.invoice-list-page .search svg {
-  position: absolute;
-  left: 12px; top: 50%;
-  transform: translateY(-50%);
-  width: 14px; height: 14px;
-  color: var(--text-muted);
+
+.invoice-list-page .search input,
+.invoice-list-page .dropdown select,
+.invoice-list-page .date-input,
+.invoice-list-page .rows-select {
+  height: 35px;
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: var(--text-body);
+  font-size: 13px;
+  font-weight: 500;
+  transition:
+    background-color 150ms ease-in-out,
+    border-color 150ms ease-in-out,
+    color 150ms ease-in-out,
+    box-shadow 150ms ease-in-out;
 }
+
 .invoice-list-page .search input {
   width: 100%;
-  height: 34px;
   padding: 0 12px 0 34px;
-  border-radius: 18px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input, #FFFFFF);
-  font-family: inherit;
-  font-size: 12.5px;
-  color: var(--text-primary);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-main);
+  box-sizing: border-box;
 }
-.invoice-list-page .search input::placeholder { color: var(--text-muted); }
-.invoice-list-page .search input:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow, rgba(13, 150, 104, 0.10));
+
+.invoice-list-page .search input::placeholder {
+  color: #9AA2A0;
+  font-weight: 400;
 }
 
 .invoice-list-page .dropdown {
   position: relative;
 }
+
 .invoice-list-page .dropdown select {
+  min-width: 154px;
+  padding: 0 32px 0 34px;
   appearance: none;
   -webkit-appearance: none;
-  height: 34px;
-  padding: 0 30px 0 12px;
-  border-radius: 18px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input, #FFFFFF);
-  font-family: inherit;
-  font-size: 12.5px;
-  color: var(--text-secondary);
   cursor: pointer;
-  min-width: 132px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.invoice-list-page .dropdown select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow, rgba(13, 150, 104, 0.10));
+
+.invoice-list-page .compact-filter select {
+  min-width: 168px;
 }
+
+.invoice-list-page .vendor-filter select {
+  min-width: 154px;
+}
+
 .invoice-list-page .dropdown::after {
   content: "";
   position: absolute;
-  right: 12px; top: 50%;
-  width: 8px; height: 8px;
-  border-right: 1.5px solid var(--text-muted);
-  border-bottom: 1.5px solid var(--text-muted);
-  transform: translateY(-70%) rotate(45deg);
+  right: 12px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid #8B9491;
+  border-bottom: 1.5px solid #8B9491;
+  transform: translateY(-65%) rotate(45deg);
   pointer-events: none;
 }
 
 .invoice-list-page .date-input {
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 18px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input, #FFFFFF);
-  font-family: inherit;
-  font-size: 12.5px;
-  color: var(--text-secondary);
-  min-width: 140px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 188px;
+  min-width: 188px;
+  padding: 0 10px 0 34px;
+  color: var(--text-main);
+  color-scheme: light;
+  box-sizing: border-box;
 }
-.invoice-list-page .date-input:focus {
+
+.invoice-list-page .date-input::-webkit-datetime-edit,
+.invoice-list-page .date-input::-webkit-datetime-edit-text,
+.invoice-list-page .date-input::-webkit-datetime-edit-month-field,
+.invoice-list-page .date-input::-webkit-datetime-edit-day-field,
+.invoice-list-page .date-input::-webkit-datetime-edit-year-field {
+  color: var(--text-body);
+  opacity: 1;
+}
+
+.invoice-list-page .date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.75;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+.invoice-list-page .search input:hover,
+.invoice-list-page .dropdown select:hover,
+.invoice-list-page .date-input:hover,
+.invoice-list-page .rows-select:hover {
+  border-color: rgba(13, 150, 104, 0.38);
+}
+
+.invoice-list-page .search input:focus,
+.invoice-list-page .dropdown select:focus,
+.invoice-list-page .date-input:focus,
+.invoice-list-page .rows-select:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow, rgba(13, 150, 104, 0.10));
+  border-color: var(--invoice-green);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .invoice-list-page .clear-btn {
-  margin-left: auto;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: 18px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input, #FFFFFF);
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 12.5px;
+  height: 35px;
+  padding: 0 13px;
+  border: 1px solid var(--border-medium);
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: var(--text-body);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 7px;
+  transition:
+    background-color 150ms ease-in-out,
+    border-color 150ms ease-in-out,
+    color 150ms ease-in-out,
+    box-shadow 150ms ease-in-out;
 }
-.invoice-list-page .clear-btn:hover {
-  border-color: var(--border-medium);
-  background: #fff;
-  color: var(--text-primary);
-}
-.invoice-list-page .clear-btn svg { width: 12px; height: 12px; }
 
-/* ============================================================
-   Table
-   ============================================================ */
-.invoice-list-page .table-wrap {
-  background: var(--bg-card, #FFFFFF);
-  border: 1px solid var(--border-table);
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+.invoice-list-page .clear-btn:hover {
+  border-color: var(--invoice-green);
+  color: var(--invoice-green-dark);
+  background: #FBFDFC;
 }
+
+.invoice-list-page .clear-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Table */
+
+.invoice-list-page .table-wrap {
+  overflow: hidden;
+  width: 100%;
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  background: var(--card-bg);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 8px 18px rgba(15, 23, 42, 0.022);
+  box-sizing: border-box;
+}
+
 .invoice-list-page .table-scroll {
   overflow-x: auto;
 }
+
 .invoice-list-page table {
   width: 100%;
+  min-width: 980px;
   border-collapse: collapse;
+  border-spacing: 0;
   font-size: 13px;
+  font-weight: 400;
 }
+
 .invoice-list-page thead tr {
-  background: var(--row-tint-header);
+  background: var(--header-bg);
 }
+
 .invoice-list-page th {
-  text-align: left;
-  padding: 12px 18px;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.085);
+  color: #56615D;
   font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
+  font-weight: 600;
   letter-spacing: 0.06em;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-table);
+  line-height: 1.2;
+  text-align: left;
+  text-transform: uppercase;
   white-space: nowrap;
 }
+
 .invoice-list-page th.sortable {
   cursor: pointer;
   user-select: none;
 }
-.invoice-list-page th.sortable:hover {
-  color: var(--text-primary);
+
+.invoice-list-page th.sortable:hover,
+.invoice-list-page th.active-sort {
+  color: var(--invoice-green);
 }
+
+.invoice-list-page .th-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .invoice-list-page th .sort-arrows {
   display: inline-flex;
   flex-direction: column;
-  margin-left: 6px;
-  vertical-align: middle;
-  line-height: 0.7;
-  color: var(--text-muted);
-  font-size: 9px;
-}
-.invoice-list-page th .sort-arrows .active {
-  color: var(--accent);
+  color: #A4ACA9;
+  font-size: 8px;
+  line-height: 0.75;
 }
 
-.invoice-list-page td {
-  padding: 13px 18px;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-table);
-  white-space: nowrap;
+.invoice-list-page th .sort-arrows .active {
+  color: var(--invoice-green);
 }
+
+/* Clean flat table rows */
+
 .invoice-list-page tbody tr {
-  transition: background 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  background: #FFFFFF;
   cursor: pointer;
+  transition: background-color 150ms ease-in-out;
 }
+
 .invoice-list-page tbody tr:nth-child(even) {
-  background: var(--row-tint-even);
+  background: #FCFCFC;
 }
+
 .invoice-list-page tbody tr:hover {
-  background: rgba(15, 23, 42, 0.035);
+  background: #F9FAFB;
 }
+
+.invoice-list-page tbody td {
+  padding: 9px 10px;
+  color: var(--text-body);
+  font-weight: 400;
+  vertical-align: middle;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.075);
+  background: transparent;
+  transition: background-color 150ms ease-in-out;
+}
+
 .invoice-list-page tbody tr:last-child td {
   border-bottom: none;
 }
 
+.invoice-list-page tbody tr.row-high-risk {
+  box-shadow: none;
+}
+
+.invoice-list-page tbody tr.row-high-risk:hover {
+  background: #F9FAFB;
+}
+
 .invoice-list-page .invoice-num {
-  color: var(--text-primary);
-  font-weight: 500;
-}
-.invoice-list-page .amount {
-  color: var(--text-primary);
+  color: var(--text-main);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.invoice-list-page .vendor-cell {
+  color: #2F3935;
   font-weight: 500;
 }
 
-/* Status text — colored, no badge background */
-.invoice-list-page .status {
+.invoice-list-page .date-cell,
+.invoice-list-page .currency-cell {
+  color: #7B8581;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-list-page .amount {
+  color: var(--text-main);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.invoice-list-page th.amount-heading {
+  text-align: right;
+}
+
+.invoice-list-page .currency-cell {
+  font-size: 12.5px;
   font-weight: 500;
+  letter-spacing: 0.03em;
 }
 
-.invoice-list-page .status.pending,
-.invoice-list-page .status.approved,
-.invoice-list-page .status.rejected,
-.invoice-list-page .status.flagged {
-  color: var(--text-primary);
+.invoice-list-page .label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  padding: 3px 8px;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  border-radius: 4px;
+  background: #F5F6F6;
+  color: #29322F;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
-.invoice-list-page .risk {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-/* Empty / loading / error row */
 .invoice-list-page .empty-state {
+  padding: 32px 10px;
+  color: var(--text-muted-local);
+  font-weight: 400;
   text-align: center;
-  padding: 40px 18px;
-  color: var(--text-tertiary);
-  cursor: default;
   white-space: normal;
-}
-.invoice-list-page .empty-state.error {
-  color: var(--status-red);
+  cursor: default;
 }
 
-/* ============================================================
-   Pagination footer
-   ============================================================ */
+.invoice-list-page .empty-state.error {
+  color: #8A1F2D;
+}
+
 .invoice-list-page .table-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
-  background: var(--bg-card, #FFFFFF);
-  border-top: 1px solid var(--border-table);
-  flex-wrap: wrap;
   gap: 12px;
+  flex-wrap: wrap;
+  padding: 9px 10px;
+  border-top: 1px solid var(--border-light);
+  background: #FFFFFF;
 }
+
 .invoice-list-page .footer-left {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--text-tertiary);
+  color: var(--text-muted-local);
   font-size: 12.5px;
+  font-weight: 400;
 }
+
 .invoice-list-page .footer-left .count strong {
-  color: var(--text-primary);
-  font-weight: 500;
+  color: var(--text-main);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
+
 .invoice-list-page .rows-select {
   height: 30px;
   padding: 0 26px 0 10px;
-  border-radius: 16px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input, #FFFFFF);
-  font-family: inherit;
-  font-size: 12px;
-  color: var(--text-secondary);
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
   background-image:
-    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
-    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, #8B9491 50%),
+    linear-gradient(135deg, #8B9491 50%, transparent 50%);
   background-position: calc(100% - 12px) 50%, calc(100% - 8px) 50%;
   background-size: 4px 4px, 4px 4px;
   background-repeat: no-repeat;
 }
+
 .invoice-list-page .pager {
   display: flex;
   align-items: center;
   gap: 4px;
 }
+
 .invoice-list-page .page-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input, #FFFFFF);
-  color: var(--text-secondary);
-  font-family: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 31px;
+  height: 31px;
+  padding: 0 8px;
+  border: 1px solid var(--border-medium);
+  border-radius: 5px;
+  background: #FFFFFF;
+  color: var(--text-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease-in-out,
+    border-color 150ms ease-in-out,
+    color 150ms ease-in-out,
+    box-shadow 150ms ease-in-out;
 }
-.invoice-list-page .page-btn:hover:not(:disabled) {
-  background: var(--accent-soft, rgba(13, 150, 104, 0.08));
-  color: var(--accent);
+
+.invoice-list-page .page-btn:hover:not(:disabled):not(.active) {
+  border-color: rgba(13, 150, 104, 0.42);
+  color: var(--invoice-green-dark);
+  background: #FBFDFC;
 }
+
 .invoice-list-page .page-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.42;
   cursor: not-allowed;
 }
+
 .invoice-list-page .page-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  border-color: var(--invoice-green);
+  background: var(--invoice-green);
+  color: #FFFFFF;
 }
+
 .invoice-list-page .page-btn.active:hover {
-  background: var(--accent-hover, #0A7B55);
-  color: #fff;
+  border-color: var(--invoice-green-dark);
+  background: var(--invoice-green-dark);
+  color: #FFFFFF;
 }
-.invoice-list-page .page-btn svg { width: 12px; height: 12px; }
+
+.invoice-list-page .page-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+@media (max-width: 640px) {
+  .invoice-list-page {
+    padding: 20px 12px 34px;
+  }
+
+  .invoice-list-page .page-title {
+    font-size: 28px;
+  }
+
+  .invoice-list-page .filters {
+    align-items: stretch;
+    margin-bottom: 4px;
+    padding: 9px;
+  }
+
+  .invoice-list-page .search,
+  .invoice-list-page .dropdown,
+  .invoice-list-page .dropdown select,
+  .invoice-list-page .date-filter,
+  .invoice-list-page .date-input,
+  .invoice-list-page .clear-btn {
+    width: 100%;
+    min-width: 100%;
+    max-width: none;
+  }
+
+  .invoice-list-page .table-footer,
+  .invoice-list-page .footer-left {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .invoice-list-page .pager {
+    justify-content: flex-start;
+  }
+}

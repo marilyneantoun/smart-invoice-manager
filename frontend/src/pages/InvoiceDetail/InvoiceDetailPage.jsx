@@ -1,18 +1,7 @@
 // ============================================================
 // pages/InvoiceDetail/InvoiceDetailPage.jsx
-// Single invoice detail view — original document, OCR comparison,
+// Single invoice detail view - original document, OCR comparison,
 // risk summary, triggered rules, action buttons, and audit trail.
-//
-// Access: Admin, Accountant, Viewer (everyone authenticated).
-// Action buttons (Approve / Reject / Leave Pending / Flag) only
-// take effect for Accountants; the backend enforces the role.
-//
-// Wraps in AppLayout so it shares the same sidebar nav as every
-// other page (Dashboard, Invoice List, Upload, etc.).
-//
-// Talks to:
-//   GET  /api/invoices/:id        → full invoice payload
-//   PUT  /api/invoices/:id/status → status changes
 // ============================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -22,7 +11,6 @@ import './InvoiceDetailPage.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-/* ── Helpers ────────────────────────────────────────────── */
 function formatDateTime(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -68,33 +56,21 @@ function riskColorVar(score) {
   return 'var(--green)';
 }
 
-/* Build a browser-fetchable URL from whatever shape `stored_file_path` has.
-   The DB may hold an absolute filesystem path
-     (e.g. "C:/Users/.../backend/uploads/invoices/2026/04/inv_x.pdf")
-   or already a relative one ("uploads/invoices/...").
-   We want:  http://localhost:5000/uploads/invoices/2026/04/inv_x.pdf  */
 function fileUrl(storedPath) {
   if (!storedPath) return '';
-  const base    = API.replace(/\/api\/?$/, '');     // → http://localhost:5000
-  const norm    = storedPath.replace(/\\/g, '/');   // windows safety
-  const idx     = norm.toLowerCase().indexOf('/uploads/');
+  const base = API.replace(/\/api\/?$/, '');
+  const norm = storedPath.replace(/\\/g, '/');
+  const idx = norm.toLowerCase().indexOf('/uploads/');
   const relPath = idx >= 0 ? norm.slice(idx) : '/' + norm.replace(/^\/+/, '');
   return `${base}${relPath}`;
 }
 
-/* ── Inline icons ───────────────────────────────────────── */
 const Icon = {
   download: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="7 10 12 15 17 10" />
       <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  ),
-  file: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
     </svg>
   ),
   fileSmall: (
@@ -164,23 +140,26 @@ const Icon = {
   ),
 };
 
-/* ── Action timeline icon picker ────────────────────────── */
 function timelineIcon(actionType) {
   switch (actionType) {
-    case 'Created':  return Icon.plus;
-    case 'Updated':  return Icon.edit;
+    case 'Created': return Icon.plus;
+    case 'Updated': return Icon.edit;
     case 'Approved': return Icon.check;
     case 'Rejected': return Icon.reject;
-    case 'Flagged':  return Icon.flag;
-    default:         return Icon.edit;
+    case 'Flagged': return Icon.flag;
+    default: return Icon.edit;
   }
 }
 
-/* ── Reason modal — required for Reject / Flag / subsequent updates ── */
 function ReasonModal({ open, title, helper, onCancel, onSubmit, submitting }) {
   const [reason, setReason] = useState('');
-  useEffect(() => { if (open) setReason(''); }, [open]);
+
+  useEffect(() => {
+    if (open) setReason('');
+  }, [open]);
+
   if (!open) return null;
+
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
       <div className="modal">
@@ -211,19 +190,14 @@ function ReasonModal({ open, title, helper, onCancel, onSubmit, submitting }) {
   );
 }
 
-/* ──────────────────────────────────────────────────────── */
-/*                  MAIN COMPONENT                          */
-/* ──────────────────────────────────────────────────────── */
 export default function InvoiceDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [data, setData]         = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState(null);
-  const [showRaw, setShowRaw]   = useState(false);
-
-  // Reason modal state
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showRaw, setShowRaw] = useState(false);
   const [modal, setModal] = useState({ open: false, action: null });
   const [submitting, setSubmitting] = useState(false);
 
@@ -231,19 +205,21 @@ export default function InvoiceDetailPage() {
   const userRole = user.role_name || 'Viewer';
   const canAct = userRole === 'Accountant';
 
-  /* ── Fetch invoice ── */
   const fetchInvoice = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API}/invoices/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || 'Failed to load invoice.');
       }
+
       const json = await res.json();
       setData(json);
     } catch (e) {
@@ -253,11 +229,13 @@ export default function InvoiceDetailPage() {
     }
   }, [id]);
 
-  useEffect(() => { fetchInvoice(); }, [fetchInvoice]);
+  useEffect(() => {
+    fetchInvoice();
+  }, [fetchInvoice]);
 
-  /* ── Status change handler ── */
   const submitStatusChange = async (newStatus, reason) => {
     setSubmitting(true);
+
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API}/invoices/${id}/status`, {
@@ -268,8 +246,10 @@ export default function InvoiceDetailPage() {
         },
         body: JSON.stringify({ new_status: newStatus, reason: reason || null }),
       });
+
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || 'Update failed.');
+
       alert(body.message);
       setModal({ open: false, action: null });
       await fetchInvoice();
@@ -280,9 +260,6 @@ export default function InvoiceDetailPage() {
     }
   };
 
-  /* ── Decide whether reason is required ── */
-  // Reject + Flag → always required.
-  // Approve / Leave Pending → first decision is optional, subsequent require a reason.
   const isFirstDecision = () => {
     if (!data || !Array.isArray(data.history)) return true;
     return data.history.filter(h => h.action_type !== 'Created').length === 0;
@@ -296,14 +273,13 @@ export default function InvoiceDetailPage() {
 
     const targetStatus = {
       approve: 'Approved',
-      reject:  'Rejected',
-      flag:    'Flagged',
+      reject: 'Rejected',
+      flag: 'Flagged',
       pending: 'Pending',
     }[action];
 
     if (!targetStatus) return;
 
-    // Reject / Flag — always require a reason
     if (targetStatus === 'Rejected' || targetStatus === 'Flagged') {
       setModal({
         open: true,
@@ -315,7 +291,6 @@ export default function InvoiceDetailPage() {
       return;
     }
 
-    // Approve / Leave Pending: subsequent change → reason required, first → optional
     if (!isFirstDecision()) {
       setModal({
         open: true,
@@ -327,11 +302,9 @@ export default function InvoiceDetailPage() {
       return;
     }
 
-    // First decision Approve/Pending → no reason needed
     submitStatusChange(targetStatus, null);
   };
 
-  /* ── Render ── */
   if (loading) {
     return (
       <AppLayout>
@@ -354,14 +327,11 @@ export default function InvoiceDetailPage() {
   if (!data) return null;
 
   const {
-    invoice,           // { invoice_id, invoice_number, invoice_date, amount, currency,
-                       //   status, was_corrected_at_review, file_type,
-                       //   original_file_name, stored_file_path,
-                       //   uploaded_at, uploaded_by_name, vendor_name }
-    ocr_result,        // { extracted_*, raw_text }
-    fraud_analysis,    // { risk_score, risk_level }
-    triggered_rules,   // [{ rule_name, weight, reason_text }]
-    history,           // [{ action_type, old_status, new_status, reason, changed_at, changed_by_name }]
+    invoice,
+    ocr_result,
+    fraud_analysis,
+    triggered_rules,
+    history,
   } = data;
 
   const riskScore = fraud_analysis?.risk_score ?? null;
@@ -370,17 +340,17 @@ export default function InvoiceDetailPage() {
   return (
     <AppLayout>
       <div className="invd-page">
-        {/* Breadcrumb */}
         <div className="breadcrumb">
           <a href="#" onClick={(e) => { e.preventDefault(); navigate('/invoices'); }}>Invoice List</a>
           <span className="sep">›</span>
           <span className="current">{invoice.invoice_number}</span>
         </div>
 
-        {/* Header */}
         <header className="invoice-header">
-          <div className="invoice-num">{invoice.invoice_number}</div>
-          <div className="invoice-vendor">{invoice.vendor_name}</div>
+          <div className="invoice-title-block">
+            <div className="invoice-num">{invoice.invoice_number}</div>
+            <div className="invoice-vendor">{invoice.vendor_name}</div>
+          </div>
 
           <div className="invoice-meta-row">
             <span className="meta-item">
@@ -423,9 +393,7 @@ export default function InvoiceDetailPage() {
           </div>
         </header>
 
-        {/* Two-column section */}
         <div className="two-col">
-          {/* LEFT — Original Document */}
           <section>
             <div className="section-head">
               <div className="section-title">Original Document</div>
@@ -453,7 +421,6 @@ export default function InvoiceDetailPage() {
             />
           </section>
 
-          {/* RIGHT — Extracted Data + Risk + Rules */}
           <section>
             <div className="section-head">
               <div className="section-title">Extracted Data Comparison</div>
@@ -470,21 +437,9 @@ export default function InvoiceDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                <CompareRow
-                  label="Vendor Name"
-                  ocr={ocr_result?.extracted_vendor_name}
-                  saved={invoice.vendor_name}
-                />
-                <CompareRow
-                  label="Invoice Number"
-                  ocr={ocr_result?.extracted_invoice_number}
-                  saved={invoice.invoice_number}
-                />
-               <CompareRow
-                 label="Invoice Date"
-                 ocr={formatDate(ocr_result?.extracted_invoice_date)}
-                 saved={formatDate(invoice.invoice_date)}
-               />
+                <CompareRow label="Vendor Name" ocr={ocr_result?.extracted_vendor_name} saved={invoice.vendor_name} />
+                <CompareRow label="Invoice Number" ocr={ocr_result?.extracted_invoice_number} saved={invoice.invoice_number} />
+                <CompareRow label="Invoice Date" ocr={formatDate(ocr_result?.extracted_invoice_date)} saved={formatDate(invoice.invoice_date)} />
                 <CompareRow
                   label="Amount"
                   ocr={ocr_result?.extracted_amount
@@ -492,11 +447,7 @@ export default function InvoiceDetailPage() {
                     : null}
                   saved={formatAmount(invoice.amount, invoice.currency)}
                 />
-                <CompareRow
-                  label="Currency"
-                  ocr={ocr_result?.extracted_currency}
-                  saved={invoice.currency}
-                />
+                <CompareRow label="Currency" ocr={ocr_result?.extracted_currency} saved={invoice.currency} />
               </tbody>
             </table>
 
@@ -504,11 +455,11 @@ export default function InvoiceDetailPage() {
               {Icon.chevron}
               {showRaw ? 'Hide Raw OCR Text' : 'View Raw OCR Text'}
             </button>
+
             {showRaw && (
               <pre className="raw-ocr">{ocr_result?.raw_text || 'No raw OCR text available.'}</pre>
             )}
 
-            {/* Risk summary */}
             <div className="risk-summary">
               <div
                 className="risk-ring"
@@ -519,6 +470,7 @@ export default function InvoiceDetailPage() {
               >
                 <span>{riskScore !== null ? Math.round(riskScore) : '—'}</span>
               </div>
+
               <div className="risk-info">
                 <div className="level">{riskLevelLabel(riskScore)}</div>
                 <div className="desc">
@@ -529,7 +481,6 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
 
-            {/* Triggered rules */}
             {triggered_rules?.length > 0 && (
               <div className="rule-list">
                 {triggered_rules.map((rule, i) => (
@@ -546,7 +497,6 @@ export default function InvoiceDetailPage() {
           </section>
         </div>
 
-        {/* Take Action */}
         <section className="section">
           <div className="section-head">
             <div className="section-title">Take Action</div>
@@ -558,46 +508,25 @@ export default function InvoiceDetailPage() {
           </p>
 
           <div className="take-action">
-            <button
-              className="btn btn-approve"
-              disabled={!canAct || submitting || invoice.status === 'Approved'}
-              onClick={() => handleAction('approve')}
-            >
+            <button className="btn btn-approve" disabled={!canAct || submitting || invoice.status === 'Approved'} onClick={() => handleAction('approve')}>
               {Icon.check} Approve
             </button>
-            <button
-              className="btn btn-reject"
-              disabled={!canAct || submitting || invoice.status === 'Rejected'}
-              onClick={() => handleAction('reject')}
-            >
+            <button className="btn btn-reject" disabled={!canAct || submitting || invoice.status === 'Rejected'} onClick={() => handleAction('reject')}>
               {Icon.reject} Reject
             </button>
-            <button
-              className="btn btn-pending"
-              disabled={!canAct || submitting || invoice.status === 'Pending'}
-              onClick={() => handleAction('pending')}
-            >
+            <button className="btn btn-pending" disabled={!canAct || submitting || invoice.status === 'Pending'} onClick={() => handleAction('pending')}>
               {Icon.pending} Leave Pending
             </button>
-            <button
-              className="btn btn-flag"
-              disabled={!canAct || submitting || invoice.status === 'Flagged'}
-              onClick={() => handleAction('flag')}
-            >
+            <button className="btn btn-flag" disabled={!canAct || submitting || invoice.status === 'Flagged'} onClick={() => handleAction('flag')}>
               {Icon.flag} Flag
             </button>
           </div>
 
-          <a
-            href="#"
-            className="back-link"
-            onClick={(e) => { e.preventDefault(); navigate('/invoices'); }}
-          >
+          <a href="#" className="back-link" onClick={(e) => { e.preventDefault(); navigate('/invoices'); }}>
             {Icon.back} Back to Invoice List
           </a>
         </section>
 
-        {/* Audit Trail */}
         <section className="section">
           <div className="section-head">
             <div className="section-title">Audit Trail</div>
@@ -626,7 +555,6 @@ export default function InvoiceDetailPage() {
         </section>
       </div>
 
-      {/* Reason modal */}
       <ReasonModal
         open={modal.open}
         title={modal.title}
@@ -639,22 +567,25 @@ export default function InvoiceDetailPage() {
   );
 }
 
-/* ── Document preview — probes the file URL first so we can show
-       a clean fallback instead of a JSON 404 page in the iframe. ── */
 function DocumentPreview({ storedPath, fileType, fileName }) {
-  const [status, setStatus] = useState('checking'); // 'checking' | 'ok' | 'missing'
+  const [status, setStatus] = useState('checking');
 
   useEffect(() => {
-    if (!storedPath) { setStatus('missing'); return; }
+    if (!storedPath) {
+      setStatus('missing');
+      return;
+    }
 
     const url = fileUrl(storedPath);
     let alive = true;
 
     fetch(url, { method: 'HEAD' })
       .then(res => { if (alive) setStatus(res.ok ? 'ok' : 'missing'); })
-      .catch(()  => { if (alive) setStatus('missing'); });
+      .catch(() => { if (alive) setStatus('missing'); });
 
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [storedPath]);
 
   if (status === 'checking') {
@@ -673,8 +604,8 @@ function DocumentPreview({ storedPath, fileType, fileName }) {
     );
   }
 
-  // status === 'ok' → render the real file
   const url = fileUrl(storedPath);
+
   if (fileType === 'IMAGE') {
     return (
       <div className="doc-frame">
@@ -682,14 +613,15 @@ function DocumentPreview({ storedPath, fileType, fileName }) {
       </div>
     );
   }
+
   return <iframe className="doc-frame" src={url} title={fileName} />;
 }
 
-/* ── Comparison row — auto-detects mismatch ── */
 function CompareRow({ label, ocr, saved }) {
-  const ocrStr   = ocr   === null || ocr   === undefined || ocr   === '' ? '—' : String(ocr);
+  const ocrStr = ocr === null || ocr === undefined || ocr === '' ? '—' : String(ocr);
   const savedStr = saved === null || saved === undefined || saved === '' ? '—' : String(saved);
-  const isMatch  = ocrStr.trim().toLowerCase() === savedStr.trim().toLowerCase();
+  const isMatch = ocrStr.trim().toLowerCase() === savedStr.trim().toLowerCase();
+
   return (
     <tr>
       <td className="field-name">{label}</td>
