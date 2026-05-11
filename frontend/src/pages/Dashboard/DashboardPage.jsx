@@ -1,68 +1,119 @@
 // ============================================================
 // pages/Dashboard/DashboardPage.jsx
-// Dashboard — KPIs, charts, vendors, rules, risk breakdown.
-// Fetches all data from GET /api/dashboard.
+// Dashboard — fraud detection overview with KPIs, charts, and
+// reviewer queues. Wraps in AppLayout (sidebar + main area).
+// Talks to backend at GET /api/dashboard.
 // ============================================================
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import Chart from 'chart.js/auto';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  PieChart, Pie, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area,
+} from 'recharts';
 import AppLayout from '../../components/Layout/AppLayout';
 import './DashboardPage.css';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-/* ── Animated counter hook ── */
-function useAnimatedValue(target, duration = 1200) {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    let start = null;
-    const step = (ts) => {
-      if (!start) start = ts;
-      const p = Math.min((ts - start) / duration, 1);
-      const ease = 1 - Math.pow(1 - p, 3);
-      setValue(Math.round(ease * target));
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [target, duration]);
-  return value;
+/* ── Status colors (jewel-toned) ── */
+const COLORS = {
+  approved: '#0B6E4F',
+  rejected: '#8B1F2E',
+  flagged:  '#B45309',
+  pending:  '#1E40AF',
+};
+
+/* ── Helpers ── */
+function formatAmount(amount, currency) {
+  if (amount === null || amount === undefined) return '—';
+  const num = Number(amount);
+  if (isNaN(num)) return '—';
+  const symbols = { USD: '$', EUR: '€', GBP: '£', LBP: 'LL ' };
+  const symbol = symbols[currency] || '';
+  return `${symbol}${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${currency || ''}`.trim();
 }
 
-/* ── KPI Card ── */
-function KpiCard({ label, value, icon, colorClass, prefix = '', suffix = '', isCurrency = false }) {
-  const animated = useAnimatedValue(value);
-  const display = isCurrency
-    ? `${prefix}${animated.toLocaleString()}`
-    : `${prefix}${animated}${suffix}`;
+function timeAgo(uploadedAt) {
+  if (!uploadedAt) return { label: '—', band: 'fresh' };
+  const then = new Date(uploadedAt).getTime();
+  const now  = Date.now();
+  const diff = now - then;
+  if (diff <= 0) return { label: 'just now', band: 'fresh' };
+
+  const hours   = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const days    = Math.floor(hours / 24);
+
+  let label;
+  if (days   > 0) label = `${days}d ${hours % 24}h`;
+  else if (hours > 0) label = `${hours}h ${minutes}m`;
+  else label = `${minutes}m`;
+
+  // Aging band: <2h fresh, 2-4h warn, >4h stale
+  let band = 'fresh';
+  if (hours >= 4 || days > 0) band = 'stale';
+  else if (hours >= 2)        band = 'warn';
+
+  return { label, band };
+}
+
+function riskBand(score) {
+  if (score >= 61) return 'high';
+  if (score >= 31) return 'med';
+  return 'low';
+}
+
+function currentMonthYear() {
+  return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+/* ── Custom chart tooltip ── */
+function ChartTooltip({ active, payload, label, suffix = '' }) {
+  if (!active || !payload || !payload.length) return null;
   return (
-    <div className="kpi">
-      <div className="kpi-top">
-        <span className="kpi-label">{label}</span>
-        <div className={`kpi-icon ${colorClass}`}>{icon}</div>
-      </div>
-      <div className="kpi-value">{display}</div>
+    <div className="chart-tooltip">
+      <div className="chart-tooltip-label">{label}</div>
+      {payload
+        .filter(p => p.value > 0)
+        .map(p => (
+          <div key={p.dataKey} className="chart-tooltip-row">
+            <span className="chart-tooltip-dot" style={{ background: p.color || p.fill }} />
+            <span className="chart-tooltip-name">{p.name}</span>
+            <span className="chart-tooltip-value">{p.value}{suffix}</span>
+          </div>
+        ))}
     </div>
   );
 }
 
-/* ── Horizontal bar list ── */
-function HBarList({ items, maxVal, colorFn }) {
+/* ──────────────────────────────────────────────
+   HORIZONTAL BAR LIST (Rules / Vendors / Flagged)
+   ────────────────────────────────────────────── */
+function HBarList({ items, color }) {
+  if (!items || items.length === 0) {
+    return <div className="hbar-empty">No data yet</div>;
+  }
+  const max = Math.max(...items.map(i => i.count), 1);
+
   return (
-    <div>
-      {items.map((item, i) => {
-        const pct = Math.max((item.value / maxVal) * 100, 4);
-        const color = typeof colorFn === 'function' ? colorFn(item) : colorFn;
+    <div className="hbar-list">
+      {items.map((item, idx) => {
+        const pct = (item.count / max) * 100;
+        const rank = String(idx + 1).padStart(2, '0');
         return (
-          <div className="hbar" key={i}>
+          <div className="hbar" key={`${item.name}-${idx}`}>
             <div className="hbar-head">
-              <span className="hbar-name">{item.label}</span>
-              <span className="hbar-val">{item.value}{item.suffix || ''}</span>
+              <div className="hbar-name">
+                <span className="hbar-rank">{rank}</span>
+                <span className="hbar-name-text">{item.name}</span>
+              </div>
+              <span className="hbar-val">{item.count}</span>
             </div>
-            <div className="hbar-track">
-              <div
-                className="hbar-fill"
-                style={{ width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}30` }}
-              />
+            {item.sub && <div className="hbar-sub">{item.sub}</div>}
+            <div className="hbar-track" style={{ marginTop: item.sub ? '4px' : '0' }}>
+              <div className="hbar-fill" style={{ width: `${pct}%`, background: color }} />
             </div>
           </div>
         );
@@ -71,266 +122,470 @@ function HBarList({ items, maxVal, colorFn }) {
   );
 }
 
-/* ── Arc gauge (SVG) ── */
-function ArcGauge({ percent = 100 }) {
-  const sz = 160, cx = sz / 2, cy = sz * 0.55, r = sz * 0.38;
-  const startA = -210, endA = 30, range = endA - startA;
-  const circ = 2 * Math.PI * r;
-  const arcLen = (range / 360) * circ;
-  const fillLen = (percent / 100) * arcLen;
-  const dashOff = -((startA / 360) * circ);
-
-  return (
-    <div className="arc-wrap">
-      <svg width={sz} height={sz * 0.72} viewBox={`0 0 ${sz} ${sz * 0.72}`}>
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(15,23,42,0.06)"
-          strokeWidth="6" strokeDasharray={`${arcLen} ${circ - arcLen}`}
-          strokeDashoffset={dashOff} strokeLinecap="round" />
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#0D9668"
-          strokeWidth="6" strokeDasharray={`${fillLen} ${circ - fillLen}`}
-          strokeDashoffset={dashOff} strokeLinecap="round"
-          style={{ filter: 'drop-shadow(0 0 4px rgba(13,150,104,0.35))' }}>
-          <animate attributeName="stroke-dasharray"
-            from={`0 ${circ}`} to={`${fillLen} ${circ - fillLen}`}
-            dur="1.5s" fill="freeze" />
-        </circle>
-        <text x={cx} y={cy + 2} textAnchor="middle" fill="#0D9668"
-          fontSize="24" fontWeight="700" fontFamily="'Plus Jakarta Sans',sans-serif">
-          {percent}%
-        </text>
-        <text x={cx} y={cy + 18} textAnchor="middle" fill="#475569"
-          fontSize="9" fontFamily="'Plus Jakarta Sans',sans-serif" letterSpacing="0.05em">
-          HUMAN REVIEWED
-        </text>
-      </svg>
-      <div className="arc-note">Every invoice undergoes<br />human review before approval</div>
-    </div>
-  );
-}
-
-/* ── Main Dashboard ── */
+/* ══════════════════════════════════════════════
+   MAIN DASHBOARD PAGE
+   ══════════════════════════════════════════════ */
 export default function DashboardPage() {
-  const [data, setData] = useState(null);
+  const navigate = useNavigate();
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  const barRef = useRef(null);
-  const donutRef = useRef(null);
-  const barChartRef = useRef(null);
-  const donutChartRef = useRef(null);
+  const [error, setError]     = useState(null);
+  const [pendingExpanded, setPendingExpanded] = useState(false);
+  // 'all' | '12' | '6' — controls how many recent months the trends charts show
+  const [trendRange, setTrendRange] = useState('all');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    fetch(`${API}/dashboard`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API}/dashboard`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!res.ok) throw new Error('Failed to load dashboard');
-        return res.json();
-      })
-      .then(d => { setData(d); setLoading(false); })
-      .catch(err => { setError(err.message); setLoading(false); });
+        const json = await res.json();
+        if (!cancelled) {
+          setData(json);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message);
+          setLoading(false);
+        }
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, []);
 
-  /* ── Chart.js setup ── */
-  const buildCharts = useCallback(() => {
-    if (!data || !barRef.current || !donutRef.current) return;
-
-    // Cleanup previous instances
-    if (barChartRef.current) barChartRef.current.destroy();
-    if (donutChartRef.current) donutChartRef.current.destroy();
-
-    // Chart.js defaults
-    Chart.defaults.color = '#475569';
-    Chart.defaults.font.family = "'Plus Jakarta Sans',sans-serif";
-    Chart.defaults.font.size = 10;
-    Chart.defaults.plugins.legend.display = false;
-    Chart.defaults.animation.duration = 1000;
-    Chart.defaults.animation.easing = 'easeOutCubic';
-
-    const months = data.monthly_volume.map(m => m.month);
-
-    // Stacked bar chart
-    barChartRef.current = new Chart(barRef.current, {
-      type: 'bar',
-      data: {
-        labels: months,
-        datasets: [
-          { label: 'Approved', data: data.monthly_volume.map(m => m.approved), backgroundColor: 'rgba(13,150,104,0.85)', borderRadius: 0, borderSkipped: false },
-          { label: 'Flagged',  data: data.monthly_volume.map(m => m.flagged),  backgroundColor: 'rgba(198,149,43,0.85)',  borderRadius: 0, borderSkipped: false },
-          { label: 'Rejected', data: data.monthly_volume.map(m => m.rejected), backgroundColor: 'rgba(155,44,61,0.85)',   borderRadius: 0, borderSkipped: false },
-          { label: 'Pending',  data: data.monthly_volume.map(m => m.pending),  backgroundColor: 'rgba(46,107,198,0.85)',  borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: false },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        scales: {
-          x: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: '#475569', font: { size: 10 } } },
-          y: { stacked: true, grid: { color: 'rgba(148,163,184,0.05)', drawBorder: false }, border: { display: false }, ticks: { color: '#475569', font: { size: 9 }, stepSize: 2, callback: v => Number.isInteger(v) ? v : '' } },
-        },
-        plugins: {
-          tooltip: {
-           backgroundColor: '#FFFFFF', borderColor: 'rgba(15,23,42,0.10)',
-            borderWidth: 1, cornerRadius: 8, padding: 10,
-            titleFont: { size: 11, weight: 600 }, titleColor: '#0F172A',
-            bodyFont: { size: 11 }, bodyColor: '#475569', boxPadding: 4,
-            usePointStyle: true, pointStyle: 'circle',
-            filter: item => item.raw > 0,
-            callbacks: { label: ctx => '  ' + ctx.dataset.label + ': ' + ctx.raw },
-          },
-        },
-        interaction: { intersect: false, mode: 'index' },
-      },
-    });
-
-    // Donut chart
-    const sd = data.status_distribution;
-    donutChartRef.current = new Chart(donutRef.current, {
-      type: 'doughnut',
-      data: {
-        labels: ['Approved', 'Rejected', 'Flagged', 'Pending'],
-        datasets: [{
-          data: [sd.Approved, sd.Rejected, sd.Flagged, sd.Pending],
-          backgroundColor: ['#0D9668', '#9B2C3D', '#C6952B', '#2E6BC6'],
-          borderWidth: 0, spacing: 3, borderRadius: 3,
-        }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, cutout: '68%',
-        plugins: {
-          tooltip: {
-            backgroundColor: '#FFFFFF', borderColor: 'rgba(15,23,42,0.10)',
-            borderWidth: 1, cornerRadius: 8, padding: 10,
-            titleFont: { size: 11, weight: 600 }, titleColor: '#0F172A',
-            bodyFont: { size: 11 }, bodyColor: '#475569', boxPadding: 4,
-            usePointStyle: true, pointStyle: 'circle',
-            callbacks: { label: ctx => '  ' + ctx.label + ': ' + ctx.raw + ' invoices' },
-          },
-        },
-      },
-    });
+  /* ── Derived data ── */
+  const statusData = useMemo(() => {
+    if (!data) return [];
+    const s = data.status_distribution;
+    return [
+      { name: 'Approved', value: s.Approved || 0, color: COLORS.approved },
+      { name: 'Rejected', value: s.Rejected || 0, color: COLORS.rejected },
+      { name: 'Flagged',  value: s.Flagged  || 0, color: COLORS.flagged  },
+      { name: 'Pending',  value: s.Pending  || 0, color: COLORS.pending  },
+    ];
   }, [data]);
 
-  useEffect(() => { buildCharts(); }, [buildCharts]);
+  const totalInvoices = data?.kpis?.total_invoices || 0;
 
-  /* ── Render ── */
+  const riskTotals = useMemo(() => {
+    if (!data) return { Low: 0, Medium: 0, High: 0, total: 0 };
+    const r = data.risk_breakdown;
+    return { ...r, total: (r.Low || 0) + (r.Medium || 0) + (r.High || 0) };
+  }, [data]);
+
+  const topVendorsList = useMemo(() => {
+    if (!data) return [];
+    return data.top_vendors.map(v => ({
+      name:  v.name,
+      count: v.count,
+      sub:   `${v.count} invoice${v.count === 1 ? '' : 's'} · ${formatAmount(v.amount, v.currency)}`,
+    }));
+  }, [data]);
+
+  const flaggedVendorsList = useMemo(() => {
+    if (!data) return [];
+    return data.top_flagged_vendors.map(v => ({ name: v.name, count: v.count }));
+  }, [data]);
+
+  const rulesList = useMemo(() => {
+    if (!data) return [];
+    return data.top_rules.map(r => ({ name: r.name, count: r.count }));
+  }, [data]);
+
+  // Slice the last N months of data based on the selected range tab.
+  // Backend returns ALL months ordered ASC by month_key, so we take the tail.
+  const filteredVolume = useMemo(() => {
+    if (!data) return [];
+    const all = data.monthly_volume || [];
+    if (trendRange === 'all') return all;
+    const n = trendRange === '6' ? 6 : 12;
+    return all.slice(-n);
+  }, [data, trendRange]);
+
+  const filteredFraudTrend = useMemo(() => {
+    if (!data) return [];
+    const all = data.fraud_trend || [];
+    if (trendRange === 'all') return all;
+    const n = trendRange === '6' ? 6 : 12;
+    return all.slice(-n);
+  }, [data, trendRange]);
+
+  const pendingQueue = data?.pending_queue || [];
+  const visibleQueue = pendingExpanded ? pendingQueue : pendingQueue.slice(0, 5);
+
+  /* ── Loading & error states ── */
   if (loading) {
     return (
       <AppLayout>
-        <div className="page-header"><div><h1>Dashboard</h1><p>Loading...</p></div></div>
+        <div className="dashboard-loading">Loading dashboard…</div>
       </AppLayout>
     );
   }
-
   if (error) {
     return (
       <AppLayout>
-        <div className="page-header"><div><h1>Dashboard</h1><p className="error-text">{error}</p></div></div>
+        <div className="dashboard-error">
+          Could not load dashboard. <button onClick={() => window.location.reload()}>Retry</button>
+        </div>
       </AppLayout>
     );
   }
 
-  const { kpis, top_vendors, top_rules, risk_breakdown, status_distribution, human_review_rate } = data;
-  const totalInvoices = kpis.total_invoices;
-  const maxVendor = top_vendors.length > 0 ? top_vendors[0].count : 1;
-  const maxRule = top_rules.length > 0 ? top_rules[0].count : 1;
-
+  /* ── Render ── */
   return (
     <AppLayout>
-      <div className="page-header">
-        <div>
-          <h1>Dashboard</h1>
-          <p>Invoice fraud detection overview</p>
-        </div>
-      </div>
+      <div className="dashboard-content">
 
-      {/* ── KPI Strip ── */}
-      <div className="kpi-strip">
-        <KpiCard label="Total Invoices" value={kpis.total_invoices} colorClass="emerald"
-          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} />
-        <KpiCard label="Pending Review" value={kpis.pending_review} colorClass="amber"
-          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>} />
-        <KpiCard label="Fraud Rate" value={kpis.fraud_rate} suffix="%" colorClass="rose"
-          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>} />
-        <KpiCard label="Approved Total" value={kpis.approved_total} prefix="$" colorClass="emerald" isCurrency
-          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>} />
-      </div>
-
-      {/* ── Charts Row ── */}
-      <div className="row">
-        <div className="card" style={{ flex: 1.4, minWidth: 0 }}>
-          <div className="card-head">
-            <span className="card-title">Monthly Invoice Volume</span>
-            <div className="legend">
-              <span className="legend-item"><span className="legend-dot" style={{ background: '#0D9668' }} />Approved</span>
-              <span className="legend-item"><span className="legend-dot" style={{ background: '#C6952B' }} />Flagged</span>
-              <span className="legend-item"><span className="legend-dot" style={{ background: '#9B2C3D' }} />Rejected</span>
-              <span className="legend-item"><span className="legend-dot" style={{ background: '#2E6BC6' }} />Pending</span>
-            </div>
-          </div>
-          <div className="chart-wrap" style={{ height: 190 }}><canvas ref={barRef} /></div>
-        </div>
-        <div className="card" style={{ flex: 0.7, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <div className="card-head"><span className="card-title">Invoice Status</span></div>
-          <div className="donut-wrap" style={{ height: 170 }}>
-            <canvas ref={donutRef} />
-            <div className="donut-center">
-              <div className="donut-center-val">{totalInvoices}</div>
-              <div className="donut-center-label">TOTAL</div>
-            </div>
-          </div>
-          <div className="donut-legend">
-            <div className="donut-row"><span className="donut-label"><span className="donut-dot" style={{ background: '#0D9668' }} />Approved</span><span className="donut-val">{status_distribution.Approved}</span></div>
-            <div className="donut-row"><span className="donut-label"><span className="donut-dot" style={{ background: '#9B2C3D' }} />Rejected</span><span className="donut-val">{status_distribution.Rejected}</span></div>
-            <div className="donut-row"><span className="donut-label"><span className="donut-dot" style={{ background: '#C6952B' }} />Flagged</span><span className="donut-val">{status_distribution.Flagged}</span></div>
-            <div className="donut-row"><span className="donut-label"><span className="donut-dot" style={{ background: '#2E6BC6' }} />Pending</span><span className="donut-val">{status_distribution.Pending}</span></div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Analytics Row ── */}
-      <div className="row">
-        <div className="card" style={{ flex: 1, minWidth: 0 }}>
-          <div className="card-head"><span className="card-title">Top Vendors by Volume</span></div>
-          <HBarList
-            items={top_vendors.map(v => ({ label: v.name, value: v.count, suffix: ' invoices' }))}
-            maxVal={maxVendor}
-            colorFn={() => '#0D9668'}
-          />
-        </div>
-        <div className="card" style={{ flex: 1, minWidth: 0 }}>
-          <div className="card-head"><span className="card-title">Most Triggered Rules</span></div>
-          <HBarList
-            items={top_rules.map(r => ({ label: r.name, value: r.count, suffix: '×', weight: r.weight }))}
-            maxVal={maxRule}
-            colorFn={(item) => item.weight >= 50 ? '#9B2C3D' : item.weight >= 20 ? '#C6952B' : '#0D9668'}
-          />
-        </div>
-      </div>
-
-      {/* ── Bottom Row ── */}
-      <div className="row">
-        <div className="card" style={{ flex: 1, minWidth: 0 }}>
-          <div className="card-head"><span className="card-title">Risk Level Breakdown</span></div>
-          <div className="risk-row">
-            <div className="risk-card" style={{ background: 'var(--green-s)', border: '1px solid var(--green-b)' }}>
-              <div className="risk-bar" style={{ background: 'var(--green)' }} />
-              <div><div className="risk-val">{risk_breakdown.Low}</div><div className="risk-label">Low Risk</div></div>
-            </div>
-            <div className="risk-card" style={{ background: 'var(--yellow-s)', border: '1px solid var(--yellow-b)' }}>
-              <div className="risk-bar" style={{ background: 'var(--yellow)' }} />
-              <div><div className="risk-val">{risk_breakdown.Medium}</div><div className="risk-label">Medium Risk</div></div>
-            </div>
-            <div className="risk-card" style={{ background: 'var(--red-s)', border: '1px solid var(--red-b)' }}>
-              <div className="risk-bar" style={{ background: 'var(--red)' }} />
-              <div><div className="risk-val">{risk_breakdown.High}</div><div className="risk-label">High Risk</div></div>
+        {/* PAGE HEADER */}
+        <div className="page-header">
+          <div>
+            <h1>Dashboard</h1>
+            <div className="page-header-sub">
+              Invoice fraud detection overview · {currentMonthYear()}
             </div>
           </div>
         </div>
-        <div className="card" style={{ flex: 0.6, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div className="card-head" style={{ width: '100%' }}><span className="card-title">Human Review Rate</span></div>
-          <ArcGauge percent={human_review_rate} />
+
+        {/* ─── ROW 1 — STATUS (Donut + Risk) ─── */}
+        <div className="row">
+          <div className="status-row">
+
+            {/* Invoice Status (Donut) */}
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <div className="card-title">
+                    <span className="card-title-dot" />Invoice Status
+                  </div>
+                  <div className="card-sub">Current invoice statuses</div>
+                </div>
+              </div>
+              <div className="donut-card-body">
+                <div className="donut-wrap">
+                  {totalInvoices > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={statusData}
+                          cx="50%" cy="50%"
+                          innerRadius="72%" outerRadius="100%"
+                          paddingAngle={2}
+                          dataKey="value"
+                          stroke="#FFFFFF"
+                          strokeWidth={3}
+                          isAnimationActive={true}
+                          animationDuration={700}
+                        >
+                          {statusData.map((entry, i) => (
+                            <Cell key={i} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<ChartTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="donut-empty-ring" />
+                  )}
+                  <div className="donut-center">
+                    <div className="donut-val">{totalInvoices}</div>
+                    <div className="donut-label">Total</div>
+                  </div>
+                </div>
+                <div className="donut-legend">
+                  {statusData.map(s => (
+                    <div className="donut-row" key={s.name}>
+                      <span className="donut-name">
+                        <span className="donut-dot" style={{ background: s.color }} />
+                        {s.name}
+                      </span>
+                      <span className="donut-count">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Risk Level Distribution */}
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <div className="card-title">
+                    <span className="card-title-dot" />Risk Level Distribution
+                  </div>
+                  <div className="card-sub">Score-based severity bands</div>
+                </div>
+              </div>
+              <div className="risk-cards">
+                {[
+                  { key: 'low',  label: 'Low',    val: riskTotals.Low,    range: '0–30',   maxBar: 100 },
+                  { key: 'med',  label: 'Medium', val: riskTotals.Medium, range: '31–60',  maxBar: 100 },
+                  { key: 'high', label: 'High',   val: riskTotals.High,   range: '61–100', maxBar: 100 },
+                ].map(r => {
+                  const pct = riskTotals.total > 0
+                    ? Math.round((r.val / riskTotals.total) * 100)
+                    : 0;
+                  return (
+                    <div className={`risk-card ${r.key}`} key={r.key}>
+                      <div className="risk-card-head">
+                        <span className="risk-card-pip" />{r.label}
+                      </div>
+                      <div className="risk-card-bar-wrap">
+                        <div className="risk-card-bar" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="risk-card-right">
+                        <div className="risk-card-val">{r.val}</div>
+                        <div className="risk-card-pct">{pct}% · {r.range}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
         </div>
+
+        {/* ─── ROW 2 — TRENDS (Volume + Fraud Rate) ─── */}
+        <div className="row">
+          <div className="card trends-card">
+
+            <div className="trends-top-bar">
+              <div>
+                <div className="page-eyebrow">
+                  <span className="eyebrow-dot" />Trend Analysis
+                </div>
+                <div className="trends-title">Monthly Invoice Volume & Fraud Activity</div>
+              </div>
+              <div className="trends-controls">
+                <div className="legend">
+                  <span className="legend-item"><span className="legend-dot" style={{ background: COLORS.approved }} />Approved</span>
+                  <span className="legend-item"><span className="legend-dot" style={{ background: COLORS.flagged }} />Flagged</span>
+                  <span className="legend-item"><span className="legend-dot" style={{ background: COLORS.rejected }} />Rejected</span>
+                  <span className="legend-item"><span className="legend-dot" style={{ background: COLORS.pending }} />Pending</span>
+                </div>
+                <div className="range-tabs">
+                  {[
+                    { key: 'all', label: 'All' },
+                    { key: '12',  label: '12 months' },
+                    { key: '6',   label: '6 months' },
+                  ].map(t => (
+                    <button
+                      key={t.key}
+                      className={`range-tab ${trendRange === t.key ? 'active' : ''}`}
+                      onClick={() => setTrendRange(t.key)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Volume Stacked Bar */}
+            <div className="chart-wrap chart-wrap-vol">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredVolume} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(15,23,42,0.04)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 500 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#94A3B8', fontSize: 10, fontWeight: 500 }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTooltip />} cursor={false} />
+                  <Bar dataKey="approved" name="Approved" stackId="a" fill={COLORS.approved} maxBarSize={52} />
+                  <Bar dataKey="flagged"  name="Flagged"  stackId="a" fill={COLORS.flagged}  maxBarSize={52} />
+                  <Bar dataKey="rejected" name="Rejected" stackId="a" fill={COLORS.rejected} maxBarSize={52} />
+                  <Bar dataKey="pending"  name="Pending"  stackId="a" fill={COLORS.pending} radius={[3, 3, 0, 0]} maxBarSize={52} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="trends-divider" />
+
+            {/* Fraud Rate Trend */}
+            <div className="chart-section-head">
+              <div>
+                <div className="card-title">
+                  <span className="card-title-dot" style={{ background: COLORS.rejected }} />Fraud Rate Trend
+                </div>
+                <div className="card-sub">% of invoices flagged or rejected</div>
+              </div>
+            </div>
+            <div className="chart-wrap chart-wrap-fraud">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={filteredFraudTrend} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="fraudGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%"   stopColor="#8B1F2E" stopOpacity={0.16} />
+                      <stop offset="100%" stopColor="#8B1F2E" stopOpacity={0}    />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="rgba(15,23,42,0.04)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fill: '#94A3B8', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    tick={{ fill: '#94A3B8', fontSize: 10 }}
+                    axisLine={false} tickLine={false}
+                    tickFormatter={v => `${v}%`}
+                    domain={[0, 100]}
+                  />
+                  <Tooltip content={<ChartTooltip suffix="%" />} cursor={{ stroke: 'rgba(15,23,42,0.1)', strokeWidth: 1 }} />
+                  <Area
+                    type="monotone"
+                    dataKey="rate"
+                    name="Fraud Rate"
+                    stroke="#8B1F2E"
+                    strokeWidth={2}
+                    fill="url(#fraudGrad)"
+                    dot={{ r: 3, fill: '#8B1F2E', stroke: '#FFFFFF', strokeWidth: 1.5 }}
+                    activeDot={{ r: 4.5 }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+          </div>
+        </div>
+
+        {/* ─── ROW 3 — Oldest Pending Queue ─── */}
+        <div className="row">
+          <div className="card">
+            <div className="card-head">
+              <div>
+                <div className="card-title">
+                  <span className="card-title-dot" />
+                  Oldest Waiting for Review
+                  <span className="title-count">{pendingQueue.length} pending</span>
+                </div>
+                <div className="card-sub">Sorted by time awaiting</div>
+              </div>
+            </div>
+
+            {pendingQueue.length === 0 ? (
+              <div className="empty-state">No invoices waiting for review.</div>
+            ) : (
+              <>
+                <table className="pending-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 130 }}>Invoice</th>
+                      <th>Vendor</th>
+                      <th className="right" style={{ width: 140 }}>Amount</th>
+                      <th className="center" style={{ width: 70 }}>Risk</th>
+                      <th className="right" style={{ width: 110 }}>In Queue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleQueue.map(inv => {
+                      const ageInfo = timeAgo(inv.uploaded_at);
+                      const rb      = riskBand(inv.risk_score);
+                      return (
+                        <tr
+                          key={inv.invoice_id}
+                          onClick={() => navigate(`/invoices/${inv.invoice_id}`)}
+                          className="pending-row"
+                        >
+                          <td><span className="p-num">{inv.invoice_number}</span></td>
+                          <td><span className="p-vendor">{inv.vendor_name}</span></td>
+                          <td className="p-amount">{formatAmount(inv.amount, inv.currency)}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span className={`p-risk ${rb}`}>{Math.round(inv.risk_score)}</span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <span className={`p-age ${ageInfo.band}`}>{ageInfo.label}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {pendingQueue.length > 5 && (
+                  <div className="view-all-row">
+                    <button
+                      className={`view-all-btn ${pendingExpanded ? 'expanded' : ''}`}
+                      onClick={() => setPendingExpanded(!pendingExpanded)}
+                    >
+                      <span>{pendingExpanded ? 'Show top 5' : `Show all ${pendingQueue.length}`}</span>
+                      <svg className="chev" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ─── ROW 4 — Common Issues ─── */}
+        <div className="row">
+          <div className="card">
+            <div className="card-head">
+              <div>
+                <div className="card-title">
+                  <span className="card-title-dot" />Common Issues
+                </div>
+                <div className="card-sub">Most-triggered rules</div>
+              </div>
+            </div>
+            <HBarList items={rulesList} color={COLORS.rejected} />
+          </div>
+        </div>
+
+        {/* ─── ROW 5 — Vendors ─── */}
+        <div className="row">
+          <div className="vendors-top-row">
+
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <div className="card-title">
+                    <span className="card-title-dot" />Top Vendors by Volume
+                  </div>
+                  <div className="card-sub">By invoice count</div>
+                </div>
+              </div>
+              <HBarList items={topVendorsList} color={COLORS.approved} />
+            </div>
+
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <div className="card-title">
+                    <span className="card-title-dot" style={{ background: COLORS.rejected }} />
+                    Top Flagged Vendors
+                  </div>
+                  <div className="card-sub">By flagged + rejected</div>
+                </div>
+              </div>
+              <HBarList items={flaggedVendorsList} color={COLORS.flagged} />
+            </div>
+
+          </div>
+
+          {/* OCR Correction Rate */}
+          <div className="card ocr-card">
+            <div className="card-head">
+              <div>
+                <div className="card-title">
+                  <span className="card-title-dot" />OCR Correction Rate
+                </div>
+                <div className="card-sub">Invoices that needed manual correction during review</div>
+              </div>
+            </div>
+            <div className="ocr-body">
+              <div className="ocr-metric-label">Corrected</div>
+              <div className="ocr-metric-val">
+                {data.ocr_correction.corrected}
+                <span className="ocr-metric-of"> / {data.ocr_correction.total}</span>
+              </div>
+              <div className="ocr-metric-sub">{data.ocr_correction.rate}% correction rate</div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </AppLayout>
   );
