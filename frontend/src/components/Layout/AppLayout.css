@@ -1,6 +1,5 @@
 /* ============================================================
-   AppLayout.css
-   Shell layout: sidebar + scrollable main area
+   AppLayout.css  —  Shell: sidebar + scrollable main area
    ============================================================ */
 
 .shell {
@@ -11,8 +10,10 @@
 
 .main {
   flex: 1;
+  min-width: 0;          /* prevent flex overflow */
   overflow: auto;
-  padding: 24px 28px 40px;
+  padding: 0;            /* pages own their own padding — no double-padding */
+  background: var(--bg-canvas, #EEF0F4);
   position: relative;
   z-index: 1;
 }
