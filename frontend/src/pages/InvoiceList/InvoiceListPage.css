@@ -1,6 +1,6 @@
 /* ============================================================
    pages/InvoiceList/InvoiceListPage.css
-   Minimal professional InvoiceShield invoice table UI.
+   Enterprise invoice management table UI.
    ============================================================ */
 
 .invoice-list-page {
@@ -16,8 +16,8 @@
   --focus-ring: rgba(13, 150, 104, 0.13);
 
   width: 100%;
-  max-width: 1400px;
-  padding: 10px 8px 40px;
+  max-width: 1100px;
+  padding: 16px 18px 40px;
   box-sizing: border-box;
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 400;
@@ -31,44 +31,80 @@
 
 .invoice-list-page .page-header {
   display: block;
-  margin-bottom: 10px;
-}
-
-.invoice-list-page .page-heading {
-  min-width: 0;
+  margin-bottom: 18px;
 }
 
 .invoice-list-page .page-title {
   margin: 0;
   color: var(--text-main);
-  font-size: 22px;
+  font-size: 25px;
   font-weight: 700;
-  line-height: 1.12;
-  letter-spacing: 0;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .invoice-list-page .page-subtitle {
-  margin: 6px 0 0;
-  color: var(--text-muted-local);
-  font-size: 13.5px;
+  margin: 7px 0 0;
+  color: #465674;
+  font-size: 14px;
   font-weight: 400;
   line-height: 1.45;
+}
+
+/* Tabs */
+
+.invoice-list-page .invoice-tabs {
+  display: flex;
+  align-items: center;
+  gap: 34px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.16);
+}
+
+.invoice-list-page .invoice-tab {
+  position: relative;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #69727D;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: color 150ms ease-in-out;
+}
+
+.invoice-list-page .invoice-tab:hover {
+  color: var(--invoice-green-dark);
+}
+
+.invoice-list-page .invoice-tab.active {
+  color: var(--invoice-green);
+}
+
+.invoice-list-page .invoice-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--invoice-green);
 }
 
 /* Filters */
 
 .invoice-list-page .filters {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  margin-bottom: 4px;
-  padding: 9px 10px;
+  margin-bottom: 10px;
+  padding: 12px 14px;
   border: 1px solid rgba(15, 23, 42, 0.09);
-  border-top: 3px solid rgba(13, 150, 104, 0.78);
-  border-radius: 7px;
+  border-top: 3px solid rgba(13, 150, 104, 0.86);
+  border-radius: 6px;
   background: #FAFBFB;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
   box-sizing: border-box;
@@ -79,15 +115,16 @@
   display: inline-flex;
   align-items: center;
   flex: 0 0 auto;
+  min-width: 0;
 }
 
 .invoice-list-page .filter-control > svg {
   position: absolute;
-  left: 11px;
+  left: 10px;
   top: 50%;
   width: 14px;
   height: 14px;
-  color: #7D8783;
+  color: #6F7A86;
   transform: translateY(-50%);
   pointer-events: none;
   z-index: 1;
@@ -97,19 +134,20 @@
   color: var(--invoice-green);
 }
 
+/* ── Search ── */
 .invoice-list-page .search {
-  flex: 0 0 350px;
-  min-width: 350px;
-  max-width: 350px;
+  flex: 0 0 auto;
+  width: 285px;
+  min-width: 285px;
 }
 
 .invoice-list-page .search input,
 .invoice-list-page .dropdown select,
 .invoice-list-page .date-input,
 .invoice-list-page .rows-select {
-  height: 35px;
+  height: 38px;
   border: 1px solid var(--border-medium);
-  border-radius: 6px;
+  border-radius: 5px;
   background: #FFFFFF;
   color: var(--text-body);
   font-size: 13px;
@@ -123,34 +161,41 @@
 
 .invoice-list-page .search input {
   width: 100%;
-  padding: 0 12px 0 34px;
+  padding: 0 10px 0 36px;
   color: var(--text-main);
   box-sizing: border-box;
 }
 
 .invoice-list-page .search input::placeholder {
-  color: #9AA2A0;
+  color: #667085;
   font-weight: 400;
+  font-size: 12.5px;
 }
 
 .invoice-list-page .dropdown {
   position: relative;
 }
 
+/* ── All dropdowns base ── */
 .invoice-list-page .dropdown select {
-  min-width: 154px;
-  padding: 0 32px 0 34px;
+  width: 145px;
+  min-width: 145px;
+  padding: 0 28px 0 36px;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
 }
 
-.invoice-list-page .compact-filter select {
-  min-width: 168px;
+/* ── Risk dropdown ── */
+.invoice-list-page .risk-filter select {
+  width: 145px;
+  min-width: 145px;
 }
 
+/* ── Vendor dropdown ── */
 .invoice-list-page .vendor-filter select {
-  min-width: 154px;
+  width: 155px;
+  min-width: 155px;
 }
 
 .invoice-list-page .dropdown::after {
@@ -158,18 +203,19 @@
   position: absolute;
   right: 12px;
   top: 50%;
-  width: 7px;
-  height: 7px;
-  border-right: 1.5px solid #8B9491;
-  border-bottom: 1.5px solid #8B9491;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid #7A8490;
+  border-bottom: 1.5px solid #7A8490;
   transform: translateY(-65%) rotate(45deg);
   pointer-events: none;
 }
 
+/* ── Date input ── */
 .invoice-list-page .date-input {
-  width: 188px;
-  min-width: 188px;
-  padding: 0 10px 0 34px;
+  width: 175px;
+  min-width: 175px;
+  padding: 0 10px 0 36px;
   color: var(--text-main);
   color-scheme: light;
   box-sizing: border-box;
@@ -185,9 +231,8 @@
 }
 
 .invoice-list-page .date-input::-webkit-calendar-picker-indicator {
-  opacity: 0.75;
+  opacity: 0.78;
   cursor: pointer;
-  margin-left: 2px;
 }
 
 .invoice-list-page .search input:hover,
@@ -206,11 +251,13 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
+/* ── Clear Filters button ── */
 .invoice-list-page .clear-btn {
-  height: 35px;
-  padding: 0 13px;
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 14px;
   border: 1px solid var(--border-medium);
-  border-radius: 6px;
+  border-radius: 5px;
   background: #FFFFFF;
   color: var(--text-body);
   font-size: 13px;
@@ -218,7 +265,8 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
+  white-space: nowrap;
   transition:
     background-color 150ms ease-in-out,
     border-color 150ms ease-in-out,
@@ -227,14 +275,15 @@
 }
 
 .invoice-list-page .clear-btn:hover {
-  border-color: var(--invoice-green);
-  color: var(--invoice-green-dark);
-  background: #FBFDFC;
+  border-color: rgba(13, 150, 104, 0.38);
+  background: #FFFFFF;
+  color: var(--text-main);
 }
 
 .invoice-list-page .clear-btn svg {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
+  color: #6F7A86;
 }
 
 /* Table */
@@ -243,11 +292,9 @@
   overflow: hidden;
   width: 100%;
   border: 1px solid var(--border-light);
-  border-radius: 7px;
+  border-radius: 6px;
   background: var(--card-bg);
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 8px 18px rgba(15, 23, 42, 0.022);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.035);
   box-sizing: border-box;
 }
 
@@ -257,7 +304,7 @@
 
 .invoice-list-page table {
   width: 100%;
-  min-width: 980px;
+  min-width: 860px;
   border-collapse: collapse;
   border-spacing: 0;
   font-size: 13px;
@@ -265,16 +312,16 @@
 }
 
 .invoice-list-page thead tr {
-  background: var(--header-bg);
+  background: #F8FAF9;
 }
 
 .invoice-list-page th {
-  padding: 9px 10px;
+  padding: 12px 16px;
   border-bottom: 1px solid rgba(15, 23, 42, 0.085);
-  color: #56615D;
+  color: #5F6B7A;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-weight: 700;
+  letter-spacing: 0.055em;
   line-height: 1.2;
   text-align: left;
   text-transform: uppercase;
@@ -300,7 +347,7 @@
 .invoice-list-page th .sort-arrows {
   display: inline-flex;
   flex-direction: column;
-  color: #A4ACA9;
+  color: #8D98A5;
   font-size: 8px;
   line-height: 0.75;
 }
@@ -308,8 +355,6 @@
 .invoice-list-page th .sort-arrows .active {
   color: var(--invoice-green);
 }
-
-/* Clean flat table rows */
 
 .invoice-list-page tbody tr {
   position: relative;
@@ -327,7 +372,7 @@
 }
 
 .invoice-list-page tbody td {
-  padding: 9px 10px;
+  padding: 12px 16px;
   color: var(--text-body);
   font-weight: 400;
   vertical-align: middle;
@@ -350,27 +395,27 @@
 }
 
 .invoice-list-page .invoice-num {
-  color: var(--text-main);
-  font-weight: 600;
+  color: var(--invoice-green);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
+  letter-spacing: 0.01em;
 }
 
 .invoice-list-page .vendor-cell {
-  color: #2F3935;
+  color: #172033;
   font-weight: 500;
 }
 
 .invoice-list-page .date-cell,
 .invoice-list-page .currency-cell {
-  color: #7B8581;
+  color: #5E6B85;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
 .invoice-list-page .amount {
-  color: var(--text-main);
-  font-weight: 600;
+  color: #111827;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -384,6 +429,8 @@
   font-weight: 500;
   letter-spacing: 0.03em;
 }
+
+/* Status & Risk badges */
 
 .invoice-list-page .label {
   display: inline-flex;
@@ -414,66 +461,81 @@
   color: #8A1F2D;
 }
 
+/* Footer */
+
 .invoice-list-page .table-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
-  padding: 9px 10px;
+  padding: 10px 16px;
   border-top: 1px solid var(--border-light);
   background: #FFFFFF;
 }
 
-.invoice-list-page .footer-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-muted-local);
+.invoice-list-page .footer-count {
+  color: #5E6B85;
   font-size: 12.5px;
   font-weight: 400;
 }
 
-.invoice-list-page .footer-left .count strong {
-  color: var(--text-main);
-  font-weight: 700;
+.invoice-list-page .footer-count strong {
+  color: #2F3A4A;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
+.invoice-list-page .footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.invoice-list-page .per-page {
+  color: #5E6B85;
+  font-size: 12.5px;
+}
+
 .invoice-list-page .rows-select {
-  height: 30px;
-  padding: 0 26px 0 10px;
+  width: 68px;
+  height: 32px;
+  padding: 0 26px 0 11px;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 12.5px;
+  font-weight: 600;
   background-image:
-    linear-gradient(45deg, transparent 50%, #8B9491 50%),
-    linear-gradient(135deg, #8B9491 50%, transparent 50%);
-  background-position: calc(100% - 12px) 50%, calc(100% - 8px) 50%;
+    linear-gradient(45deg, transparent 50%, #7A8490 50%),
+    linear-gradient(135deg, #7A8490 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%;
   background-size: 4px 4px, 4px 4px;
   background-repeat: no-repeat;
 }
 
+/* Pagination */
+
 .invoice-list-page .pager {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .invoice-list-page .page-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 31px;
-  height: 31px;
-  padding: 0 8px;
-  border: 1px solid var(--border-medium);
+  min-width: 34px;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
   border-radius: 5px;
   background: #FFFFFF;
-  color: var(--text-body);
-  font-size: 12.5px;
+  color: #4B5563;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -483,7 +545,32 @@
     box-shadow 150ms ease-in-out;
 }
 
-.invoice-list-page .page-btn:hover:not(:disabled):not(.active) {
+.invoice-list-page .page-btn.page-number {
+  background: var(--invoice-green);
+  border-color: var(--invoice-green);
+  color: #FFFFFF;
+}
+
+.invoice-list-page .page-btn.page-number:hover:not(:disabled):not(.active) {
+  background: var(--invoice-green-dark);
+  border-color: var(--invoice-green-dark);
+  color: #FFFFFF;
+}
+
+.invoice-list-page .page-btn.page-number.active {
+  background: var(--invoice-green-dark);
+  border-color: var(--invoice-green-dark);
+  color: #FFFFFF;
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.invoice-list-page .page-btn.page-arrow {
+  background: #FFFFFF;
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #4B5563;
+}
+
+.invoice-list-page .page-btn.page-arrow:hover:not(:disabled) {
   border-color: rgba(13, 150, 104, 0.42);
   color: var(--invoice-green-dark);
   background: #FBFDFC;
@@ -494,36 +581,41 @@
   cursor: not-allowed;
 }
 
-.invoice-list-page .page-btn.active {
-  border-color: var(--invoice-green);
-  background: var(--invoice-green);
-  color: #FFFFFF;
-}
-
-.invoice-list-page .page-btn.active:hover {
-  border-color: var(--invoice-green-dark);
-  background: var(--invoice-green-dark);
-  color: #FFFFFF;
-}
-
 .invoice-list-page .page-btn svg {
-  width: 12px;
-  height: 12px;
+  width: 13px;
+  height: 13px;
+}
+
+/* Responsive */
+
+@media (max-width: 1100px) {
+  .invoice-list-page .filters {
+    flex-wrap: wrap;
+  }
+
+  .invoice-list-page .search {
+    flex: 1 1 100%;
+    width: 100%;
+  }
 }
 
 @media (max-width: 640px) {
   .invoice-list-page {
-    padding: 20px 12px 34px;
+    padding: 18px 12px 34px;
   }
 
   .invoice-list-page .page-title {
-    font-size: 28px;
+    font-size: 26px;
+  }
+
+  .invoice-list-page .invoice-tabs {
+    gap: 22px;
+    overflow-x: auto;
   }
 
   .invoice-list-page .filters {
     align-items: stretch;
-    margin-bottom: 4px;
-    padding: 9px;
+    padding: 10px;
   }
 
   .invoice-list-page .search,
@@ -538,9 +630,13 @@
   }
 
   .invoice-list-page .table-footer,
-  .invoice-list-page .footer-left {
+  .invoice-list-page .footer-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .invoice-list-page .footer-actions {
+    width: 100%;
   }
 
   .invoice-list-page .pager {

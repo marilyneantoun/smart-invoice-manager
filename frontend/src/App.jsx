@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import InvoiceListPage from './pages/InvoiceList/InvoiceListPage';
 import UploadInvoicePage from './pages/UploadInvoice/UploadInvoicePage';
 import InvoiceDetailPage from './pages/InvoiceDetail/InvoiceDetailPage';
+import AuditTrailPage from './pages/AuditTrail/AuditTrailPage';
 import './styles/variables.css';
 
 /* ============================================================
@@ -49,6 +50,12 @@ export default function App() {
        <ProtectedRoute>
         <InvoiceDetailPage />
         </ProtectedRoute>}  />
+
+        <Route path="/audit"
+       element={
+       <ProtectedRoute>
+        <AuditTrailPage />
+        </ProtectedRoute>}/>
 
         {/* Future routes — uncomment as pages are built
         <Route path="/admin"  element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />

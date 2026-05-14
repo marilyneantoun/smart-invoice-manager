@@ -16,8 +16,11 @@ function formatDateTime(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return '—';
   return d.toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: 'numeric', minute: '2-digit',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 
@@ -71,26 +74,6 @@ const Icon = {
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="7 10 12 15 17 10" />
       <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  ),
-  fileSmall: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-    </svg>
-  ),
-  calendar: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  ),
-  user: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
     </svg>
   ),
   chevron: (
@@ -326,14 +309,7 @@ export default function InvoiceDetailPage() {
 
   if (!data) return null;
 
-  const {
-    invoice,
-    ocr_result,
-    fraud_analysis,
-    triggered_rules,
-    history,
-  } = data;
-
+  const { invoice, ocr_result, fraud_analysis, triggered_rules, history } = data;
   const riskScore = fraud_analysis?.risk_score ?? null;
   const ringAngle = riskScore !== null ? Math.min(riskScore, 100) : 0;
 
@@ -350,55 +326,41 @@ export default function InvoiceDetailPage() {
           <div className="invoice-title-block">
             <div className="invoice-num">{invoice.invoice_number}</div>
             <div className="invoice-vendor">{invoice.vendor_name}</div>
+            <div className="invoice-file-type">{invoice.file_type || 'PDF'}</div>
           </div>
 
-          <div className="invoice-meta-row">
-            <span className="meta-item">
-              {Icon.calendar}
-              <span className="label">Uploaded</span>
-              <span className="value">{formatDateTime(invoice.uploaded_at)}</span>
-            </span>
+          <div className="invoice-meta-middle">
+            <div className="header-meta-line">
+              <span className="header-meta-label">Uploaded</span>
+              <span className="header-meta-value">{formatDateTime(invoice.uploaded_at)}</span>
+            </div>
 
-            <span className="meta-item">
-              {Icon.user}
-              <span className="label">By</span>
-              <span className="value">{invoice.uploaded_by_name || '—'}</span>
-            </span>
+            <div className="header-meta-line">
+              <span className="header-meta-label">By</span>
+              <span className="header-meta-value">{invoice.uploaded_by_name || '—'}</span>
+            </div>
+          </div>
 
-            <span className="meta-item">
-              {Icon.fileSmall}
-              <span className="value">{invoice.file_type || 'PDF'}</span>
-            </span>
+          <div className="invoice-meta-right">
+            <div className="header-meta-line">
+              <span className="header-meta-label">Status</span>
+              <span className="detail-label">{invoice.status || '—'}</span>
+            </div>
 
-            <span className="meta-item">
-              <span className="meta-dot" />
-              <span className="label">Status</span>
-              <span className="value">{invoice.status}</span>
-            </span>
-
-            <span className="meta-item">
-              <span className="meta-dot" />
-              <span className="label">Risk</span>
-              <span className="value">
+            <div className="header-meta-line">
+              <span className="header-meta-label">Risk</span>
+              <span className="detail-label">
                 {riskScore === null ? '—' : riskLevelLabel(riskScore).replace(' Risk', '')}
               </span>
-            </span>
-
-            {invoice.was_corrected_at_review ? (
-              <span className="meta-item">
-                <span className="meta-dot" />
-                <span className="value">OCR Corrected</span>
-              </span>
-            ) : null}
+            </div>
           </div>
         </header>
 
-        <div className="two-col">
-          <section>
-            <div className="section-head">
-              <div className="section-title">Original Document</div>
+        <div className="detail-grid">
+          <section className="detail-card doc-card">
+            <div className="card-head">
+              <h2>Original Document</h2>
             </div>
-            <div className="section-rule" />
 
             <div className="doc-toolbar">
               <span className="doc-filename">{invoice.original_file_name}</span>
@@ -421,117 +383,145 @@ export default function InvoiceDetailPage() {
             />
           </section>
 
-          <section>
-            <div className="section-head">
-              <div className="section-title">Extracted Data Comparison</div>
-            </div>
-            <div className="section-rule" />
-
-            <table className="compare-table">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>OCR Extracted</th>
-                  <th>Saved Value</th>
-                  <th>Match</th>
-                </tr>
-              </thead>
-              <tbody>
-                <CompareRow label="Vendor Name" ocr={ocr_result?.extracted_vendor_name} saved={invoice.vendor_name} />
-                <CompareRow label="Invoice Number" ocr={ocr_result?.extracted_invoice_number} saved={invoice.invoice_number} />
-                <CompareRow label="Invoice Date" ocr={formatDate(ocr_result?.extracted_invoice_date)} saved={formatDate(invoice.invoice_date)} />
-                <CompareRow
-                  label="Amount"
-                  ocr={ocr_result?.extracted_amount
-                    ? formatAmount(ocr_result.extracted_amount, ocr_result?.extracted_currency || invoice.currency)
-                    : null}
-                  saved={formatAmount(invoice.amount, invoice.currency)}
-                />
-                <CompareRow label="Currency" ocr={ocr_result?.extracted_currency} saved={invoice.currency} />
-              </tbody>
-            </table>
-
-            <button className="raw-toggle" onClick={() => setShowRaw(s => !s)}>
-              {Icon.chevron}
-              {showRaw ? 'Hide Raw OCR Text' : 'View Raw OCR Text'}
-            </button>
-
-            {showRaw && (
-              <pre className="raw-ocr">{ocr_result?.raw_text || 'No raw OCR text available.'}</pre>
-            )}
-
-            <div className="risk-summary">
-              <div
-                className="risk-ring"
-                style={{
-                  background: `conic-gradient(${riskColorVar(riskScore)} 0% ${ringAngle}%, rgba(15,23,42,0.08) ${ringAngle}% 100%)`,
-                  color: riskColorVar(riskScore),
-                }}
-              >
-                <span>{riskScore !== null ? Math.round(riskScore) : '—'}</span>
+          <div className="right-stack">
+            <section className="detail-card review-card">
+              <div className="card-head">
+                <h2>Extracted Data & Review</h2>
               </div>
 
-              <div className="risk-info">
-                <div className="level">{riskLevelLabel(riskScore)}</div>
-                <div className="desc">
-                  {triggered_rules?.length
-                    ? `${triggered_rules.length} fraud rule${triggered_rules.length > 1 ? 's' : ''} triggered — manual review required`
-                    : 'No fraud rules triggered'}
+              <div className="review-body">
+                <table className="compare-table">
+                  <thead>
+                    <tr>
+                      <th>Field</th>
+                      <th>OCR Extracted</th>
+                      <th>Saved Value</th>
+                      <th>Match</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <CompareRow label="Vendor Name" ocr={ocr_result?.extracted_vendor_name} saved={invoice.vendor_name} />
+                    <CompareRow label="Invoice Number" ocr={ocr_result?.extracted_invoice_number} saved={invoice.invoice_number} />
+                    <CompareRow label="Invoice Date" ocr={formatDate(ocr_result?.extracted_invoice_date)} saved={formatDate(invoice.invoice_date)} />
+                    <CompareRow
+                      label="Amount"
+                      ocr={ocr_result?.extracted_amount
+                        ? formatAmount(ocr_result.extracted_amount, ocr_result?.extracted_currency || invoice.currency)
+                        : null}
+                      saved={formatAmount(invoice.amount, invoice.currency)}
+                    />
+                    <CompareRow label="Currency" ocr={ocr_result?.extracted_currency} saved={invoice.currency} />
+                  </tbody>
+                </table>
+
+                <button className="raw-toggle" onClick={() => setShowRaw(s => !s)}>
+                  {Icon.chevron}
+                  {showRaw ? 'Hide Raw OCR Text' : 'View Raw OCR Text'}
+                </button>
+
+                {showRaw && (
+                  <pre className="raw-ocr">{ocr_result?.raw_text || 'No raw OCR text available.'}</pre>
+                )}
+
+                <div className="risk-panel">
+                  <div className="risk-summary">
+                    <div
+                      className="risk-ring"
+                      style={{
+                        background: `conic-gradient(${riskColorVar(riskScore)} 0% ${ringAngle}%, rgba(15,23,42,0.08) ${ringAngle}% 100%)`,
+                        color: riskColorVar(riskScore),
+                      }}
+                    >
+                      <span>{riskScore !== null ? Math.round(riskScore) : '—'}</span>
+                    </div>
+
+                    <div className="risk-info">
+                      <div className="level">{riskLevelLabel(riskScore)}</div>
+                      <div className="desc">
+                        {triggered_rules?.length
+                          ? `${triggered_rules.length} fraud rule${triggered_rules.length > 1 ? 's' : ''} triggered — manual review required`
+                          : 'No fraud rules triggered'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {triggered_rules?.length > 0 && (
+                    <div className="rule-list">
+                      {triggered_rules.map((rule, i) => (
+                        <div className="rule-row" key={i}>
+                          <div>
+                            <div className="rule-name">{rule.rule_name}</div>
+                            <div className="rule-reason">{rule.reason_text}</div>
+                          </div>
+                          <div className="rule-weight">+{rule.weight} pts</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-
-            {triggered_rules?.length > 0 && (
-              <div className="rule-list">
-                {triggered_rules.map((rule, i) => (
-                  <div className="rule-row" key={i}>
-                    <div>
-                      <div className="rule-name">{rule.rule_name}</div>
-                      <div className="rule-reason">{rule.reason_text}</div>
-                    </div>
-                    <div className="rule-weight">+{rule.weight} pts</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+            </section>
+          </div>
         </div>
 
-        <section className="section">
-          <div className="section-head">
-            <div className="section-title">Take Action</div>
-          </div>
-          <div className="section-rule" />
-
-          <p className="ta-helper">
-            Reject and Flag require a mandatory reason. The first decision from Pending may be saved without one.
-          </p>
-
-          <div className="take-action">
-            <button className="btn btn-approve" disabled={!canAct || submitting || invoice.status === 'Approved'} onClick={() => handleAction('approve')}>
-              {Icon.check} Approve
-            </button>
-            <button className="btn btn-reject" disabled={!canAct || submitting || invoice.status === 'Rejected'} onClick={() => handleAction('reject')}>
-              {Icon.reject} Reject
-            </button>
-            <button className="btn btn-pending" disabled={!canAct || submitting || invoice.status === 'Pending'} onClick={() => handleAction('pending')}>
-              {Icon.pending} Leave Pending
-            </button>
-            <button className="btn btn-flag" disabled={!canAct || submitting || invoice.status === 'Flagged'} onClick={() => handleAction('flag')}>
-              {Icon.flag} Flag
-            </button>
+        <section className="detail-card action-card">
+          <div className="card-head">
+            <h2>Take Action</h2>
           </div>
 
-          <a href="#" className="back-link" onClick={(e) => { e.preventDefault(); navigate('/invoices'); }}>
-            {Icon.back} Back to Invoice List
-          </a>
+          <div className="action-body">
+            <p className="ta-helper">
+              Reject and Flag require a mandatory reason. The first decision from Pending may be saved without one.
+            </p>
+
+            <div className="take-action">
+              <button
+                className="btn btn-approve"
+                disabled={!canAct || submitting || invoice.status === 'Approved'}
+                onClick={() => handleAction('approve')}
+              >
+                {Icon.check} Approve
+              </button>
+
+              <button
+                className="btn btn-reject"
+                disabled={!canAct || submitting || invoice.status === 'Rejected'}
+                onClick={() => handleAction('reject')}
+              >
+                {Icon.reject} Reject
+              </button>
+
+              <button
+                className="btn btn-pending"
+                disabled={!canAct || submitting || invoice.status === 'Pending'}
+                onClick={() => handleAction('pending')}
+              >
+                {Icon.pending} Leave Pending
+              </button>
+
+              <button
+                className="btn btn-flag"
+                disabled={!canAct || submitting || invoice.status === 'Flagged'}
+                onClick={() => handleAction('flag')}
+              >
+                {Icon.flag} Flag
+              </button>
+            </div>
+
+            <a
+              href="#"
+              className="back-link"
+              onClick={(e) => { e.preventDefault(); navigate('/invoices'); }}
+            >
+              {Icon.back} Back to Invoice List
+            </a>
+          </div>
         </section>
 
-        <section className="section">
-          <div className="section-head">
-            <div className="section-title">Audit Trail</div>
+        <section className="detail-card audit-card">
+          <div className="card-head">
+            <h2>Audit Trail</h2>
           </div>
-          <div className="section-rule" />
 
           <div className="timeline">
             {history?.length > 0 ? (
