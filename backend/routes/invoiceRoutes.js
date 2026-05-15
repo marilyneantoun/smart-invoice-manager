@@ -449,7 +449,7 @@ router.put(
 //     limit: <rows per page>
 //   }
 //
-// Access: any authenticated role (Admin, Accountant, Viewer).
+// Access: any authenticated role (Admin, Accountant, Auditor).
 // ================================================================
 router.get(
   '/invoices',

@@ -185,7 +185,7 @@ export default function InvoiceDetailPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const userRole = user.role_name || 'Viewer';
+  const userRole = user.role_name || 'Auditor';
   const canAct = userRole === 'Accountant';
 
   const fetchInvoice = useCallback(async () => {

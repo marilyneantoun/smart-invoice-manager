@@ -39,6 +39,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api', invoiceRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/vendors', vendorRoutes);
 
 // Health-check — useful to confirm the server is running
 app.get('/api/health', (req, res) => {

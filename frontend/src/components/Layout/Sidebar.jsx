@@ -62,13 +62,13 @@ const NAV_SECTIONS = [
   {
     title: 'Overview',
     items: [
-      { key: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/dashboard', roles: ['Admin', 'Accountant', 'Viewer'] },
+      { key: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/dashboard', roles: ['Admin', 'Accountant', 'Auditor'] },
     ],
   },
   {
     title: 'Invoices',
     items: [
-      { key: 'invoices',  label: 'Invoice List',    icon: 'invoices', path: '/invoices',       roles: ['Admin', 'Accountant', 'Viewer'] },
+      { key: 'invoices',  label: 'Invoice List',    icon: 'invoices', path: '/invoices',       roles: ['Admin', 'Accountant', 'Auditor'] },
       { key: 'upload',    label: 'Upload Invoice',  icon: 'upload',   path: '/invoices/upload', roles: ['Accountant'] },
     ],
   },
@@ -82,7 +82,7 @@ const NAV_SECTIONS = [
   {
     title: 'Logs',
     items: [
-      { key: 'audit', label: 'Audit Trail', icon: 'audit', path: '/audit', roles: ['Admin', 'Viewer'] },
+      { key: 'audit', label: 'Audit Trail', icon: 'audit', path: '/audit', roles: ['Admin', 'Auditor'] },
     ],
   },
 ];
@@ -94,7 +94,7 @@ export default function Sidebar() {
 
   // Read user info from localStorage (set during login)
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const userRole = user.role_name || 'Viewer';
+  const userRole = user.role_name || 'Auditor';
   const userName = user.full_name || 'User';
   const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase();
   console.log('SIDEBAR USER:', user);

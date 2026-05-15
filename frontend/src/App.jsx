@@ -19,6 +19,7 @@ import './styles/variables.css';
      return children;
    }
 
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -57,6 +58,7 @@ export default function App() {
         <AuditTrailPage />
         </ProtectedRoute>}/>
 
+    
         {/* Future routes — uncomment as pages are built
         <Route path="/admin"  element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           
