@@ -261,9 +261,9 @@ export default function DashboardPage() {
               <div className="card-head">
                 <div>
                   <div className="card-title">
-                    <span className="card-title-dot" />Invoice Status
+                    <span className="card-title-dot" />Invoice Status Overview 
                   </div>
-                  <div className="card-sub">Current invoice statuses</div>
+                  <div className="card-sub">Invoice Distribution by Current Statuses</div>
                 </div>
               </div>
               <div className="donut-card-body">
@@ -316,9 +316,9 @@ export default function DashboardPage() {
               <div className="card-head">
                 <div>
                   <div className="card-title">
-                    <span className="card-title-dot" />Risk Level Distribution
+                    <span className="card-title-dot" />Risk Overview
                   </div>
-                  <div className="card-sub">Score-based severity bands</div>
+                  <div className="card-sub">Invoice Distribution by Risk Level</div>
                 </div>
               </div>
               <div className="risk-cards">
@@ -357,10 +357,8 @@ export default function DashboardPage() {
 
             <div className="trends-top-bar">
               <div>
-                <div className="page-eyebrow">
-                  <span className="eyebrow-dot" />Trend Analysis
-                </div>
-                <div className="trends-title">Monthly Invoice Volume & Fraud Activity</div>
+                <div className="trends-title">Invoice Activity</div>
+                 <div className="card-sub">Monthly Invoice Totals and Review Results</div>
               </div>
               <div className="trends-controls">
                 <div className="legend">
@@ -409,9 +407,9 @@ export default function DashboardPage() {
             <div className="chart-section-head">
               <div>
                 <div className="card-title">
-                  <span className="card-title-dot" style={{ background: COLORS.rejected }} />Fraud Rate Trend
+                  <span className="card-title-dot" style={{ background: COLORS.rejected }} />Fraud Trend Line
                 </div>
-                <div className="card-sub">% of invoices flagged or rejected</div>
+                <div className="card-sub">Monthly % of Flagged or Rejected Invoices</div>
               </div>
             </div>
             <div className="chart-wrap chart-wrap-fraud">
@@ -456,10 +454,10 @@ export default function DashboardPage() {
               <div>
                 <div className="card-title">
                   <span className="card-title-dot" />
-                  Oldest Waiting for Review
+                  Oldest Pending Reviews
                   <span className="title-count">{pendingQueue.length} pending</span>
                 </div>
-                <div className="card-sub">Sorted by time awaiting</div>
+                <div className="card-sub">Pending Review Aging</div>
               </div>
             </div>
 
@@ -527,7 +525,7 @@ export default function DashboardPage() {
                 <div className="card-title">
                   <span className="card-title-dot" />Common Issues
                 </div>
-                <div className="card-sub">Most-triggered rules</div>
+                <div className="card-sub">Most Common Issues Detected In Invoices</div>
               </div>
             </div>
             <HBarList items={rulesList} color={COLORS.rejected} />
@@ -542,9 +540,9 @@ export default function DashboardPage() {
               <div className="card-head">
                 <div>
                   <div className="card-title">
-                    <span className="card-title-dot" />Top Vendors by Volume
+                    <span className="card-title-dot" />Most Active Vendors
                   </div>
-                  <div className="card-sub">By invoice count</div>
+                  <div className="card-sub">Based on Total Invoices Submissions</div>
                 </div>
               </div>
               <HBarList items={topVendorsList} color={COLORS.approved} />
@@ -557,7 +555,7 @@ export default function DashboardPage() {
                     <span className="card-title-dot" style={{ background: COLORS.rejected }} />
                     Top Flagged Vendors
                   </div>
-                  <div className="card-sub">By flagged + rejected</div>
+                  <div className="card-sub">Based on Flagged and Rejected Invoices</div>
                 </div>
               </div>
               <HBarList items={flaggedVendorsList} color={COLORS.flagged} />
@@ -570,9 +568,9 @@ export default function DashboardPage() {
             <div className="card-head">
               <div>
                 <div className="card-title">
-                  <span className="card-title-dot" />OCR Correction Rate
+                  <span className="card-title-dot" />Manual Review Correction Rate
                 </div>
-                <div className="card-sub">Invoices that needed manual correction during review</div>
+                <div className="card-sub">Invoices That Needed Manual Correction After Extraction</div>
               </div>
             </div>
             <div className="ocr-body">
