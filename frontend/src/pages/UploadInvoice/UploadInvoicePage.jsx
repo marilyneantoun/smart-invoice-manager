@@ -12,7 +12,7 @@
 // /api/invoices/:id/status, and /api/vendors (approved list).
 // ============================================================
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '../../components/Layout/AppLayout';
 import './UploadInvoicePage.css';
@@ -353,6 +353,96 @@ function Phase1Upload({ file, setFile, onUpload, uploading }) {
 
 
 /* ================================================================
+   DOCUMENT PREVIEW — memoized, isolated from form-state churn
+   ----------------------------------------------------------------
+   Wrapped in React.memo so it skips rendering entirely when the
+   parent (Phase2Review) re-renders due to form-field edits.
+   The blob URL is created ONCE per file (via useMemo, keyed on the
+   File object itself) so the <iframe>/<img> src never changes
+   between keystrokes, and the PDF viewer keeps its zoom, scroll,
+   and page state intact.
+   We also clean up the blob URL on unmount/file-change to avoid
+   a memory leak.
+   ================================================================ */
+const DocumentPreview = React.memo(function DocumentPreview({ file }) {
+  // Build the blob URL once per file. URL.createObjectURL is NOT pure —
+  // each call returns a fresh "blob:" string even for the same file —
+  // so without this memo, the URL changed on every parent re-render and
+  // React tore down + remounted the <iframe>, flashing the PDF.
+  const fileUrl = useMemo(() => {
+    if (!file) return null;
+    return URL.createObjectURL(file);
+  }, [file]);
+
+  // Revoke the blob URL when the file changes or component unmounts —
+  // cleans up the in-memory blob reference held by the browser.
+  useEffect(() => {
+    return () => {
+      if (fileUrl) URL.revokeObjectURL(fileUrl);
+    };
+  }, [fileUrl]);
+
+  if (!file || !fileUrl) return null;
+
+  const isPdf = file.type === 'application/pdf';
+
+  return (
+    <div className="preview-card">
+      <div className="preview-header">
+        <span className="preview-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          Document Preview
+        </span>
+        <span className={`preview-badge ${fileTypeLabel(file).toLowerCase()}`}>
+          {fileTypeLabel(file)}
+        </span>
+      </div>
+      <div className="preview-body">
+        {isPdf ? (
+          <iframe
+            src={`${fileUrl}#toolbar=0&navpanes=0&scrollbar=1`}
+            title="Invoice PDF Preview"
+            style={{
+              width: '100%',
+              height: '100%',
+              minHeight: 420,
+              border: 'none',
+              borderRadius: 4,
+              background: '#fff',
+              pointerEvents: 'auto',
+            }}
+          />
+        ) : (
+          <img
+            src={fileUrl}
+            alt="Invoice preview"
+            style={{
+              maxWidth: '100%',
+              maxHeight: 420,
+              borderRadius: 8,
+              objectFit: 'contain',
+              userSelect: 'none',
+            }}
+          />
+        )}
+      </div>
+      <div className="preview-filename">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        {file.name} — {formatSize(file.size)}
+      </div>
+    </div>
+  );
+});
+
+
+/* ================================================================
    PHASE 2 — REVIEW EXTRACTED DATA
    ================================================================ */
 function Phase2Review({
@@ -490,11 +580,6 @@ function Phase2Review({
       }
       setVendorReqSent(true);
       setVendorReqOpen(false);
-      showToast(
-        'success',
-        'Vendor Request Submitted',
-        `"${data.vendor_name}" has been sent to an administrator for approval. You'll be able to select it once approved.`
-      );
     } catch (err) {
       console.error('Vendor request error:', err);
       showToast('error', 'Request Failed', 'Could not reach the server. Please try again.');
@@ -505,58 +590,9 @@ function Phase2Review({
 
   return (
     <div className="split-panel">
-      {/* LEFT: File Preview */}
-      <div className="preview-card">
-        <div className="preview-header">
-          <span className="preview-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <circle cx="8.5" cy="8.5" r="1.5" />
-              <polyline points="21 15 16 10 5 21" />
-            </svg>
-            Document Preview
-          </span>
-          <span className={`preview-badge ${fileTypeLabel(file).toLowerCase()}`}>
-            {fileTypeLabel(file)}
-          </span>
-        </div>
-        <div className="preview-body">
-          {file && file.type === 'application/pdf' ? (
-            <iframe
-              src={URL.createObjectURL(file) + '#toolbar=0&navpanes=0&scrollbar=1'}
-              title="Invoice PDF Preview"
-              style={{
-                width: '100%',
-                height: '100%',
-                minHeight: 420,
-                border: 'none',
-                borderRadius: 4,
-                background: '#fff',
-                pointerEvents: 'auto',
-              }}
-            />
-          ) : file ? (
-            <img
-              src={URL.createObjectURL(file)}
-              alt="Invoice preview"
-              style={{
-                maxWidth: '100%',
-                maxHeight: 420,
-                borderRadius: 8,
-                objectFit: 'contain',
-                userSelect: 'none',
-              }}
-            />
-          ) : null}
-        </div>
-        <div className="preview-filename">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-          {file?.name} — {file ? formatSize(file.size) : ''}
-        </div>
-      </div>
+      {/* LEFT: File Preview — memoized component so form-field edits
+          don't cause the PDF/image to reload or flicker */}
+      <DocumentPreview file={file} />
 
       {/* RIGHT: Editable OCR Form */}
       <div className="form-card">

@@ -1,22 +1,50 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import DashboardPage     from './pages/Dashboard/DashboardPage';
-import LoginPage         from './pages/LoginPage';
-import InvoiceListPage   from './pages/InvoiceList/InvoiceListPage';
-import UploadInvoicePage from './pages/UploadInvoice/UploadInvoicePage';
-import InvoiceDetailPage from './pages/InvoiceDetail/InvoiceDetailPage';
-import AuditTrailPage    from './pages/AuditTrail/AuditTrailPage';
-import FraudRulesPage    from './pages/FraudRules/FraudRulesPage';
+import DashboardPage       from './pages/Dashboard/DashboardPage';
+import LoginPage           from './pages/LoginPage';
+import InvoiceListPage     from './pages/InvoiceList/InvoiceListPage';
+import UploadInvoicePage   from './pages/UploadInvoice/UploadInvoicePage';
+import InvoiceDetailPage   from './pages/InvoiceDetail/InvoiceDetailPage';
+import AuditTrailPage      from './pages/AuditTrail/AuditTrailPage';
+import FraudRulesPage      from './pages/FraudRules/FraudRulesPage';
+import AdministrationPage  from './pages/Administration/AdministrationPage';
 import './styles/variables.css';
 
 /* ============================================================
    App.jsx — Root router
    ============================================================ */
 
-// Simple auth guard — wraps protected pages
-function ProtectedRoute({ children }) {
+// Helper — is the JWT in localStorage present AND not expired?
+function hasValidToken() {
   const token = localStorage.getItem('token');
-  if (!token) return <Navigate to="/" replace />;
+  if (!token) return false;
+
+  try {
+    // JWT format: header.payload.signature — decode the payload only.
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      // expired — clean up so subsequent loads don't try again
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return false;
+    }
+    return true;
+  } catch {
+    // malformed token — clean up
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    return false;
+  }
+}
+
+// Guards — protect logged-in pages, and keep logged-in users off /login
+function ProtectedRoute({ children }) {
+  if (!hasValidToken()) return <Navigate to="/" replace />;
+  return children;
+}
+
+function PublicRoute({ children }) {
+  if (hasValidToken()) return <Navigate to="/dashboard" replace />;
   return children;
 }
 
@@ -24,8 +52,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public */}
-        <Route path="/" element={<LoginPage />} />
+        {/* Public — login page */}
+        <Route
+          path="/"
+          element={
+            <PublicRoute>
+              <LoginPage />
+            </PublicRoute>
+          }
+        />
 
         {/* Dashboard */}
         <Route
@@ -79,6 +114,16 @@ export default function App() {
           element={
             <ProtectedRoute>
               <FraudRulesPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Administration */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdministrationPage />
             </ProtectedRoute>
           }
         />

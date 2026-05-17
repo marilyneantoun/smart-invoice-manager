@@ -327,7 +327,7 @@
 .invoice-list-page th:nth-child(2),
 .invoice-list-page td:nth-child(2) { width: auto;  min-width: 160px; } /* Vendor */
 .invoice-list-page th:nth-child(3),
-.invoice-list-page td:nth-child(3) { width: 110px; }     /* Date          */
+.invoice-list-page td:nth-child(3) { width: 125px; }     /* Date          */
 .invoice-list-page th:nth-child(4),
 .invoice-list-page td:nth-child(4) { width: 120px; }     /* Amount        */
 .invoice-list-page th:nth-child(5),
