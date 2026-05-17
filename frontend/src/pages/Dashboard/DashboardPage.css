@@ -125,7 +125,7 @@
   justify-content: space-between;
   align-items: flex-start;
   /* Reference: margin-bottom: 11px */
-  margin-bottom: 11px;
+  margin-bottom: 8px;
   gap: 10px;
 }
 .dashboard-content .card-title {
@@ -167,14 +167,14 @@
   display: flex;
   gap: 14px;
   align-items: center;
-  padding: 2px 0;
+  padding: 0;
 }
 
 /* Reference: width: 140px; height: 140px */
 .donut-wrap {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 132px;
+  height: 132px;
   flex-shrink: 0;
 }
 .donut-empty-ring {
@@ -243,7 +243,7 @@
 
 /* Reference: padding: 11px 4px */
 .risk-card {
-  padding: 11px 4px;
+  padding: 8px 4px;
   border-bottom: 1px solid var(--border-faint);
   background: transparent;
   display: flex;
@@ -269,12 +269,8 @@
 .risk-card.med  .risk-card-pip  { background: var(--risk-med); }
 .risk-card.high .risk-card-pip  {
   background: var(--risk-high);
-  animation: riskPulse 1.8s ease-out infinite;
 }
-@keyframes riskPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(139,31,46,0.5); }
-  50%      { box-shadow: 0 0 0 5px rgba(139,31,46,0); }
-}
+/* riskPulse animation removed — High pip is static */
 /* Reference: flex: 1; height: 5px */
 .risk-card-bar-wrap {
   flex: 1;

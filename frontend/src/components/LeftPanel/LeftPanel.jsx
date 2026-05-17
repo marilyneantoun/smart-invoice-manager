@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import './LeftPanel.css';
 import logimg from '../../assets/loginImg.jpg';
 
@@ -14,13 +14,30 @@ const STATS = [
   { value: '100%', label: 'Human Reviewed' },
 ];
 
+/* Preload the background image once at module load so the browser
+   already has it decoded by the time the panel mounts (e.g. after logout). */
+const preloaded = new Image();
+preloaded.src = logimg;
+
 export default function LeftPanel() {
+  const [imgReady, setImgReady] = useState(preloaded.complete);
+
+  useEffect(() => {
+    if (preloaded.complete) {
+      setImgReady(true);
+      return;
+    }
+    const onLoad = () => setImgReady(true);
+    preloaded.addEventListener('load', onLoad);
+    return () => preloaded.removeEventListener('load', onLoad);
+  }, []);
+
   return (
     <div className="panel-left">
 
-      {/* Background photo (neon2.jpg) */}
+      {/* Background photo (loginImg.jpg) */}
       <div
-        className="bg-photo"
+        className={`bg-photo ${imgReady ? 'is-ready' : ''}`}
         style={{ backgroundImage: `url(${logimg})` }}
       />
 

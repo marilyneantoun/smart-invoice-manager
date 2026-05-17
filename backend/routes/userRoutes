@@ -1,0 +1,311 @@
+// ============================================================
+// routes/userRoutes.js
+//
+// User management endpoints (Administration → User Management tab).
+//
+//   GET    /api/users                  — list users (with role_name)
+//   GET    /api/users/:id              — single user detail
+//   POST   /api/users                  — create user            (Admin)
+//   PUT    /api/users/:id              — update user            (Admin)
+//   PATCH  /api/users/:id/status       — toggle is_active       (Admin)
+//   PATCH  /api/users/:id/password     — reset password         (Admin)
+//
+// password_hash is NEVER returned. The role table is joined so
+// the frontend can read u.role_name directly.
+//
+// All routes require JWT; mutating routes require Admin.
+// ============================================================
+
+const express = require('express');
+const router  = express.Router();
+const bcrypt  = require('bcryptjs');
+const pool    = require('../config/db');
+const { protect, allowRoles } = require('../middleware/authMiddleware');
+
+// Reusable SELECT projection — single source of truth, never includes the hash
+const USER_COLUMNS = `
+  u.user_id,
+  u.full_name,
+  u.email,
+  u.is_active,
+  u.created_at,
+  u.role_id,
+  r.role_name
+`;
+
+// ---- Helpers -------------------------------------------------
+
+// Resolve a role identifier (either role_id INT or role_name string)
+// to a role_id. Returns null when unresolvable.
+async function resolveRoleId({ role_id, role_name }) {
+  if (role_id !== undefined && role_id !== null && role_id !== '') {
+    return Number(role_id);
+  }
+  if (role_name) {
+    const [rows] = await pool.query(
+      'SELECT role_id FROM role WHERE role_name = ? LIMIT 1',
+      [role_name]
+    );
+    return rows[0] ? rows[0].role_id : null;
+  }
+  return null;
+}
+
+// ---- Routes --------------------------------------------------
+
+// ── GET /api/users ──
+// Query params:
+//   ?role=Admin|Accountant|Auditor  — filter by role name
+//   ?active=true|false              — filter by active flag
+router.get('/', protect, async (req, res) => {
+  try {
+    let sql = `
+      SELECT ${USER_COLUMNS}
+        FROM \`user\` u
+        JOIN role r ON r.role_id = u.role_id
+       WHERE 1 = 1
+    `;
+    const params = [];
+
+    if (req.query.role) {
+      sql += ' AND r.role_name = ?';
+      params.push(req.query.role);
+    }
+    if (req.query.active === 'true') {
+      sql += ' AND u.is_active = TRUE';
+    } else if (req.query.active === 'false') {
+      sql += ' AND u.is_active = FALSE';
+    }
+
+    sql += ' ORDER BY u.created_at DESC';
+
+    const [rows] = await pool.query(sql, params);
+    return res.status(200).json({ users: rows });
+  } catch (err) {
+    console.error('GET /users error:', err);
+    return res.status(500).json({ message: 'Failed to fetch users.' });
+  }
+});
+
+// ── GET /api/users/:id ──
+router.get('/:id', protect, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT ${USER_COLUMNS}
+         FROM \`user\` u
+         JOIN role r ON r.role_id = u.role_id
+        WHERE u.user_id = ?
+        LIMIT 1`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ message: 'User not found.' });
+    return res.status(200).json({ user: rows[0] });
+  } catch (err) {
+    console.error('GET /users/:id error:', err);
+    return res.status(500).json({ message: 'Failed to fetch user.' });
+  }
+});
+
+// ── POST /api/users ──  (Admin only)
+// Body:
+//   { full_name, email, password, role_id?  OR  role_name?, is_active? }
+router.post('/', protect, allowRoles('Admin'), async (req, res) => {
+  try {
+    const {
+      full_name, email, password,
+      role_id, role_name,
+      is_active = true,
+    } = req.body || {};
+
+    if (!full_name || !email || !password) {
+      return res.status(400).json({
+        message: 'full_name, email, and password are required.',
+      });
+    }
+    if (String(password).length < 8) {
+      return res.status(400).json({
+        message: 'Password must be at least 8 characters long.',
+      });
+    }
+
+    const resolvedRoleId = await resolveRoleId({ role_id, role_name });
+    if (!resolvedRoleId) {
+      return res.status(400).json({
+        message: 'A valid role_id or role_name (Admin / Accountant / Auditor) is required.',
+      });
+    }
+
+    // Friendly duplicate-email error
+    const [dup] = await pool.query(
+      'SELECT user_id FROM `user` WHERE email = ? LIMIT 1',
+      [email]
+    );
+    if (dup.length) {
+      return res.status(409).json({ message: 'A user with that email already exists.' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    const [result] = await pool.query(
+      `INSERT INTO \`user\`
+         (full_name, email, password_hash, is_active, role_id)
+       VALUES (?, ?, ?, ?, ?)`,
+      [full_name, email, password_hash, !!is_active, resolvedRoleId]
+    );
+
+    const [rows] = await pool.query(
+      `SELECT ${USER_COLUMNS}
+         FROM \`user\` u
+         JOIN role r ON r.role_id = u.role_id
+        WHERE u.user_id = ?
+        LIMIT 1`,
+      [result.insertId]
+    );
+    return res.status(201).json({ user: rows[0] });
+  } catch (err) {
+    console.error('POST /users error:', err);
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'Email already in use.' });
+    }
+    return res.status(500).json({ message: 'Failed to create user.' });
+  }
+});
+
+// ── PUT /api/users/:id ──  (Admin only)
+// Body may include: full_name, email, role_id OR role_name, is_active
+// Password changes go through PATCH /:id/password.
+router.put('/:id', protect, allowRoles('Admin'), async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    const sets = [];
+    const params = [];
+
+    if (req.body.full_name !== undefined) {
+      sets.push('full_name = ?');
+      params.push(req.body.full_name);
+    }
+    if (req.body.email !== undefined) {
+      sets.push('email = ?');
+      params.push(req.body.email);
+    }
+    if (req.body.is_active !== undefined) {
+      sets.push('is_active = ?');
+      params.push(!!req.body.is_active);
+    }
+    if (req.body.role_id !== undefined || req.body.role_name !== undefined) {
+      const roleId = await resolveRoleId({
+        role_id:   req.body.role_id,
+        role_name: req.body.role_name,
+      });
+      if (!roleId) {
+        return res.status(400).json({ message: 'Invalid role.' });
+      }
+      sets.push('role_id = ?');
+      params.push(roleId);
+    }
+
+    if (!sets.length) {
+      return res.status(400).json({ message: 'No updatable fields supplied.' });
+    }
+
+    params.push(id);
+    const [result] = await pool.query(
+      `UPDATE \`user\` SET ${sets.join(', ')} WHERE user_id = ?`,
+      params
+    );
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT ${USER_COLUMNS}
+         FROM \`user\` u
+         JOIN role r ON r.role_id = u.role_id
+        WHERE u.user_id = ?
+        LIMIT 1`,
+      [id]
+    );
+    return res.status(200).json({ user: rows[0] });
+  } catch (err) {
+    console.error('PUT /users/:id error:', err);
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'Email already in use.' });
+    }
+    return res.status(500).json({ message: 'Failed to update user.' });
+  }
+});
+
+// ── PATCH /api/users/:id/status ──  (Admin only)
+// Body: { is_active: true|false }   — soft deactivate / reactivate.
+// Toggles when no body is supplied. Admins cannot disable themselves.
+router.patch('/:id/status', protect, allowRoles('Admin'), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    if (id === req.user.user_id) {
+      return res.status(400).json({
+        message: 'You cannot change your own active status.',
+      });
+    }
+
+    const [rows] = await pool.query(
+      'SELECT is_active FROM `user` WHERE user_id = ? LIMIT 1',
+      [id]
+    );
+    if (!rows[0]) return res.status(404).json({ message: 'User not found.' });
+
+    const next = (req.body && typeof req.body.is_active === 'boolean')
+      ? req.body.is_active
+      : !rows[0].is_active;
+
+    await pool.query(
+      'UPDATE `user` SET is_active = ? WHERE user_id = ?',
+      [next, id]
+    );
+
+    const [updated] = await pool.query(
+      `SELECT ${USER_COLUMNS}
+         FROM \`user\` u
+         JOIN role r ON r.role_id = u.role_id
+        WHERE u.user_id = ?
+        LIMIT 1`,
+      [id]
+    );
+    return res.status(200).json({ user: updated[0] });
+  } catch (err) {
+    console.error('PATCH /users/:id/status error:', err);
+    return res.status(500).json({ message: 'Failed to update user status.' });
+  }
+});
+
+// ── PATCH /api/users/:id/password ──  (Admin only)
+// Body: { password }   — Admin-driven password reset.
+router.patch('/:id/password', protect, allowRoles('Admin'), async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { password } = req.body || {};
+
+    if (!password || String(password).length < 8) {
+      return res.status(400).json({
+        message: 'New password must be at least 8 characters long.',
+      });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+    const [result] = await pool.query(
+      'UPDATE `user` SET password_hash = ? WHERE user_id = ?',
+      [password_hash, id]
+    );
+    if (!result.affectedRows) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    return res.status(200).json({ message: 'Password updated successfully.' });
+  } catch (err) {
+    console.error('PATCH /users/:id/password error:', err);
+    return res.status(500).json({ message: 'Failed to reset password.' });
+  }
+});
+
+module.exports = router;

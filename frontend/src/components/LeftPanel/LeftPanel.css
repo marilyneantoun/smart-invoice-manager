@@ -11,7 +11,11 @@
   justify-content: space-between;
   padding: 44px 52px;
   overflow: hidden;
-  background: linear-gradient(170deg, #0a0f1a 0%, #0d1425 40%, #0b1018 100%);
+  /* Greenish-dark fallback that matches the photo's overall tone,
+     so any sub-frame gap before the JPG paints blends in rather than
+     flashing pure black. */
+  background:
+    radial-gradient(ellipse at 65% 50%, #0f3a2c 0%, #0a1f18 55%, #07120e 100%);
   min-height: 100vh;
 }
 
@@ -27,6 +31,12 @@
   filter: blur(0.5px);
   transform: scale(1.03);
   transform-origin: center;
+  /* Fade in over 180ms once the JPG is decoded — no more abrupt swap */
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+.bg-photo.is-ready {
   opacity: 1;
 }
 
