@@ -634,12 +634,17 @@
   }
 
   .audit-title {
-    font-size: 26px;
+    font-size: 24px;
+  }
+
+  .audit-subtitle {
+    font-size: 13px;
   }
 
   .audit-tabs {
     gap: 22px;
     overflow-x: auto;
+    padding-bottom: 1px;
   }
 
   .audit-filters {
@@ -663,9 +668,124 @@
     justify-content: center;
   }
 
+  .audit-table-wrap {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .audit-table,
+  .audit-table thead,
+  .audit-table tbody,
+  .audit-table tr,
+  .audit-table th,
+  .audit-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .audit-table {
+    min-width: 0;
+  }
+
+  .audit-table thead {
+    display: none;
+  }
+
+  .audit-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  .audit-table tbody tr {
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: #FFFFFF;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+  }
+
+  .audit-table tbody tr:nth-child(even) {
+    background: #FFFFFF;
+  }
+
+  .audit-table tbody tr:hover {
+    background: #FFFFFF;
+  }
+
+  .audit-table td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 11px 14px;
+    text-align: right;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.075);
+  }
+
+  .audit-table td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: #5F6B7A;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    text-align: left;
+  }
+
+  .audit-table tbody tr td:last-child {
+    border-bottom: none;
+  }
+
+  .audit-change-cell {
+    max-width: none;
+  }
+
+  .audit-change-text,
+  .audit-reason-text {
+    text-align: right;
+  }
+
+  .audit-reason-text {
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+  }
+
+  .audit-empty {
+    display: block;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: #FFFFFF;
+    text-align: center;
+  }
+
+  .audit-empty::before {
+    content: none;
+  }
+
   .audit-pagination {
     align-items: stretch;
     flex-direction: column;
+    margin-top: 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+  }
+
+  .audit-pagination-info {
+    flex-wrap: wrap;
+    line-height: 1.5;
+  }
+
+  .audit-rows-select {
+    width: 100%;
+  }
+
+  .audit-rows-select select {
+    width: 100%;
   }
 
   .audit-pagination-controls {

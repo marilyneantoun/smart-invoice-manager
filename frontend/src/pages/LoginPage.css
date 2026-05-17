@@ -8,6 +8,8 @@
   width: 100%;
 }
 
+
+
 /* On tablets and below, stack vertically */
 @media (max-width: 900px) {
   .login-page {

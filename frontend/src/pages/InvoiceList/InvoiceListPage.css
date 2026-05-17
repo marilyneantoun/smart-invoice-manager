@@ -72,6 +72,7 @@
   font-weight: 650;
   cursor: pointer;
   transition: color 150ms ease-in-out;
+  white-space: nowrap;
 }
 
 .invoice-list-page .invoice-tab:hover {
@@ -134,7 +135,8 @@
   color: var(--invoice-green);
 }
 
-/* ── Search ── */
+/* Search */
+
 .invoice-list-page .search {
   flex: 0 0 auto;
   width: 285px;
@@ -176,7 +178,8 @@
   position: relative;
 }
 
-/* ── All dropdowns base ── */
+/* Dropdowns */
+
 .invoice-list-page .dropdown select {
   width: 145px;
   min-width: 145px;
@@ -186,13 +189,11 @@
   cursor: pointer;
 }
 
-/* ── Risk dropdown ── */
 .invoice-list-page .risk-filter select {
   width: 145px;
   min-width: 145px;
 }
 
-/* ── Vendor dropdown ── */
 .invoice-list-page .vendor-filter select {
   width: 155px;
   min-width: 155px;
@@ -211,7 +212,8 @@
   pointer-events: none;
 }
 
-/* ── Date input ── */
+/* Date input */
+
 .invoice-list-page .date-input {
   width: 175px;
   min-width: 175px;
@@ -251,7 +253,8 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-/* ── Clear Filters button ── */
+/* Clear Filters button */
+
 .invoice-list-page .clear-btn {
   flex: 0 0 auto;
   height: 38px;
@@ -300,16 +303,39 @@
 
 .invoice-list-page .table-scroll {
   overflow-x: auto;
+  /* Smooth touch scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
 }
 
 .invoice-list-page table {
   width: 100%;
-  min-width: 860px;
+  min-width: 920px;          /* Increased so columns don't squish on tablet */
   border-collapse: collapse;
   border-spacing: 0;
   font-size: 13px;
   font-weight: 400;
+  /* Fixed layout gives consistent column widths instead of letting content
+     decide; combined with the per-column widths below this prevents
+     mid-range viewport squish. */
+  table-layout: fixed;
 }
+
+/* Per-column widths — give each column a sensible minimum so content
+   doesn't get crushed on tablet sizes. Adjust if your column order differs. */
+.invoice-list-page th:nth-child(1),
+.invoice-list-page td:nth-child(1) { width: 130px; }     /* Invoice #     */
+.invoice-list-page th:nth-child(2),
+.invoice-list-page td:nth-child(2) { width: auto;  min-width: 160px; } /* Vendor */
+.invoice-list-page th:nth-child(3),
+.invoice-list-page td:nth-child(3) { width: 110px; }     /* Date          */
+.invoice-list-page th:nth-child(4),
+.invoice-list-page td:nth-child(4) { width: 120px; }     /* Amount        */
+.invoice-list-page th:nth-child(5),
+.invoice-list-page td:nth-child(5) { width: 78px;  }     /* Currency      */
+.invoice-list-page th:nth-child(6),
+.invoice-list-page td:nth-child(6) { width: 110px; }     /* Status        */
+.invoice-list-page th:nth-child(7),
+.invoice-list-page td:nth-child(7) { width: 105px; }     /* Risk          */
 
 .invoice-list-page thead tr {
   background: #F8FAF9;
@@ -377,6 +403,10 @@
   font-weight: 400;
   vertical-align: middle;
   white-space: nowrap;
+  /* Truncate overly long cell content with an ellipsis so columns don't
+     blow out when a vendor name is unusually long. */
+  overflow: hidden;
+  text-overflow: ellipsis;
   border-bottom: 1px solid rgba(15, 23, 42, 0.075);
   background: transparent;
   transition: background-color 150ms ease-in-out;
@@ -430,7 +460,7 @@
   letter-spacing: 0.03em;
 }
 
-/* Status & Risk badges */
+/* Status and Risk badges */
 
 .invoice-list-page .label {
   display: inline-flex;
@@ -586,60 +616,304 @@
   height: 13px;
 }
 
-/* Responsive */
+/* ============================================================
+   Responsive
+   ============================================================ */
 
-@media (max-width: 1100px) {
-  .invoice-list-page .filters {
-    flex-wrap: wrap;
-  }
-
-  .invoice-list-page .search {
-    flex: 1 1 100%;
-    width: 100%;
-  }
-}
-
-@media (max-width: 640px) {
+/* Tablet: 960px and below — tighten paddings so the table still fits
+   without horizontal scroll on most tablets in landscape. */
+@media (max-width: 960px) {
   .invoice-list-page {
-    padding: 18px 12px 34px;
-  }
-
-  .invoice-list-page .page-title {
-    font-size: 26px;
+    max-width: 100%;
   }
 
   .invoice-list-page .invoice-tabs {
-    gap: 22px;
+    gap: 28px;
     overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    scrollbar-width: thin;
   }
 
   .invoice-list-page .filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
-    padding: 10px;
   }
 
-  .invoice-list-page .search,
+  .invoice-list-page .search {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+
   .invoice-list-page .dropdown,
   .invoice-list-page .dropdown select,
   .invoice-list-page .date-filter,
   .invoice-list-page .date-input,
   .invoice-list-page .clear-btn {
     width: 100%;
-    min-width: 100%;
+    min-width: 0;
     max-width: none;
   }
 
-  .invoice-list-page .table-footer,
+  .invoice-list-page .clear-btn {
+    justify-content: center;
+  }
+
+  /* Tablet table — slightly tighter cell padding so the 920px min-width
+     fits on more tablets without forcing horizontal scroll. */
+  .invoice-list-page th,
+  .invoice-list-page tbody td {
+    padding: 11px 12px;
+  }
+
+  .invoice-list-page .table-footer {
+    gap: 12px;
+  }
+
   .invoice-list-page .footer-actions {
-    align-items: stretch;
+    flex-wrap: wrap;
+  }
+}
+
+/* Small tablet / large phone: 760px and below */
+@media (max-width: 760px) {
+  .invoice-list-page {
+    padding: 18px 12px 34px;
+  }
+
+  .invoice-list-page .page-title {
+    font-size: 24px;
+  }
+
+  .invoice-list-page .page-subtitle {
+    font-size: 13px;
+  }
+
+  .invoice-list-page .invoice-tabs {
+    gap: 22px;
+    margin-bottom: 16px;
+    padding-bottom: 1px;
+  }
+
+  .invoice-list-page .filters {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .invoice-list-page .table-footer {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .invoice-list-page .footer-actions {
     width: 100%;
+    margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .invoice-list-page .rows-select {
+    width: 100%;
   }
 
   .invoice-list-page .pager {
-    justify-content: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+/* Phone: 640px and below — switch table to mobile-first card layout */
+@media (max-width: 640px) {
+  .invoice-list-page .table-wrap {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .invoice-list-page .table-scroll {
+    overflow: visible;
+  }
+
+  .invoice-list-page table,
+  .invoice-list-page thead,
+  .invoice-list-page tbody,
+  .invoice-list-page tr,
+  .invoice-list-page th,
+  .invoice-list-page td {
+    display: block;
+    width: 100%;
+  }
+
+  /* Disable the fixed table layout and per-column widths from the desktop
+     section — they don't apply in card mode. */
+  .invoice-list-page table {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .invoice-list-page th:nth-child(n),
+  .invoice-list-page td:nth-child(n) {
+    width: auto;
+    min-width: 0;
+  }
+
+  .invoice-list-page thead {
+    display: none;
+  }
+
+  .invoice-list-page tbody {
+    display: grid;
+    gap: 12px;
+  }
+
+  /* Each row is a card with a clear hover/active affordance for touch */
+  .invoice-list-page tbody tr {
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    background: #FFFFFF;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+    transition: box-shadow 150ms ease-in-out, transform 150ms ease-in-out;
+  }
+
+  .invoice-list-page tbody tr:active {
+    transform: scale(0.995);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  }
+
+  .invoice-list-page tbody tr:nth-child(even),
+  .invoice-list-page tbody tr:hover {
+    background: #FFFFFF;
+  }
+
+  /* Each cell becomes a label/value row inside the card.
+     Labels read from data-label="..." on the <td> in your JSX. */
+  .invoice-list-page tbody td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 11px 14px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    text-align: right;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    min-height: 44px;     /* nice touch target / consistent row height */
+  }
+
+  .invoice-list-page tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    max-width: 45%;
+    color: #5F6B7A;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.035em;
+    text-transform: uppercase;
+    text-align: left;
+  }
+
+  /* Right-side value can wrap if the vendor name is long */
+  .invoice-list-page tbody td > * {
+    text-align: right;
+    word-break: break-word;
+  }
+
+  /* Invoice number row — make it the visual "header" of the card */
+  .invoice-list-page tbody td.invoice-num-cell,
+  .invoice-list-page tbody td:first-child {
+    background: #F8FAF9;
+    border-bottom: 1px solid var(--border-light);
+    padding-top: 13px;
+    padding-bottom: 13px;
+  }
+
+  .invoice-list-page .invoice-num {
+    font-size: 14px;
+  }
+
+  .invoice-list-page tbody tr td:last-child {
+    border-bottom: none;
+  }
+
+  /* Amount aligned right naturally; let the cell flex handle it */
+  .invoice-list-page .amount {
+    text-align: right;
+  }
+
+  /* Status and risk badges keep their pill style but anchor to the right */
+  .invoice-list-page .label {
+    min-width: 70px;
+  }
+
+  /* Footer becomes a clean card too */
+  .invoice-list-page .table-footer {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  }
+
+  .invoice-list-page .empty-state {
+    display: block;
+    padding: 28px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    background: #FFFFFF;
+  }
+
+  .invoice-list-page .empty-state::before {
+    content: none;
+  }
+}
+
+/* Small phone: 420px and below */
+@media (max-width: 420px) {
+  .invoice-list-page {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .invoice-list-page .invoice-tabs {
+    gap: 18px;
+  }
+
+  .invoice-list-page .page-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+  }
+
+  .invoice-list-page tbody td {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .invoice-list-page tbody td::before {
+    font-size: 10.5px;
+  }
+
+  .invoice-list-page .label {
+    min-width: 62px;
+    font-size: 11px;
+  }
+
+  /* Pager: scale numbers down so 5-6 page buttons fit on a 360px screen */
+  .invoice-list-page .pager {
+    gap: 4px;
+  }
+
+  .invoice-list-page .page-btn.page-number {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 6px;
+    font-size: 12px;
   }
 }

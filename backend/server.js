@@ -5,16 +5,17 @@
 // ============================================================
 
 require('dotenv').config();
-const pool = require('./config/db');
-const express      = require('express');
-const cors         = require('cors');
-const path         = require('path');
-const authRoutes   = require('./routes/authRoutes');
+const pool            = require('./config/db');
+const express         = require('express');
+const cors            = require('cors');
+const path            = require('path');
+const authRoutes      = require('./routes/authRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
-const errorHandler = require('./middleware/errorHandler');
-const invoiceRoutes = require('./routes/invoiceRoutes');
-const vendorRoutes = require('./routes/vendorRoutes');
-const auditRoutes = require('./routes/auditRoutes');
+const errorHandler    = require('./middleware/errorHandler');
+const invoiceRoutes   = require('./routes/invoiceRoutes');
+const vendorRoutes    = require('./routes/vendorRoutes');
+const auditRoutes     = require('./routes/auditRoutes');
+const fraudRuleRoutes = require('./routes/fraudRuleRoutes');
 
 const app  = express();
 const PORT = process.env.PORT || 5000;
@@ -34,19 +35,19 @@ app.use(cors({
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ---- Routes ----
-app.use('/api/auth', authRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api', invoiceRoutes);
-app.use('/api/vendors', vendorRoutes);
-app.use('/api/audit', auditRoutes);
-app.use('/api/vendors', vendorRoutes);
+app.use('/api/auth',        authRoutes);
+app.use('/api/dashboard',   dashboardRoutes);
+app.use('/api',             invoiceRoutes);
+app.use('/api/vendors',     vendorRoutes);
+app.use('/api/audit',       auditRoutes);
+app.use('/api/fraud-rules', fraudRuleRoutes);
 
 // Health-check — useful to confirm the server is running
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'InvoiceShield API is running.' });
 });
 
-//db connection test
+// db connection test
 app.get('/api/test-db', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT 1');

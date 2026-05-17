@@ -41,14 +41,27 @@ router.get('/', protect, async (req, res) => {
 
     /* ──────────────────────────────────────────────
        3) Risk level distribution
+          Bands are DERIVED LIVE from fa.risk_score and current
+          system_setting thresholds — single source of truth.
+          Uses conditional aggregation (SUM(CASE)) instead of
+          GROUP BY on a CASE expression, which avoids any collation
+          quirks where the same label could be grouped into multiple
+          buckets.
        ────────────────────────────────────────────── */
-    const [riskRows] = await pool.query(`
-      SELECT risk_level, COUNT(*) AS count
-      FROM fraud_analysis
-      GROUP BY risk_level
+    const [[riskRow]] = await pool.query(`
+      SELECT
+        SUM(CASE WHEN fa.risk_score <= s.low_risk_max                                        THEN 1 ELSE 0 END) AS low_count,
+        SUM(CASE WHEN fa.risk_score >  s.low_risk_max
+                  AND fa.risk_score <= s.medium_risk_max                                     THEN 1 ELSE 0 END) AS medium_count,
+        SUM(CASE WHEN fa.risk_score >  s.medium_risk_max                                     THEN 1 ELSE 0 END) AS high_count
+      FROM fraud_analysis fa
+      CROSS JOIN system_setting s
     `);
-    const riskBreakdown = { Low: 0, Medium: 0, High: 0 };
-    riskRows.forEach(r => { riskBreakdown[r.risk_level] = r.count; });
+    const riskBreakdown = {
+      Low:    Number(riskRow.low_count)    || 0,
+      Medium: Number(riskRow.medium_count) || 0,
+      High:   Number(riskRow.high_count)   || 0,
+    };
 
     /* ──────────────────────────────────────────────
        4) Monthly volume — every month that has invoices,
@@ -150,10 +163,16 @@ router.get('/', protect, async (req, res) => {
         i.currency,
         i.uploaded_at,
         fa.risk_score,
-        fa.risk_level
+        CASE
+          WHEN fa.risk_score IS NULL              THEN NULL
+          WHEN fa.risk_score <= s.low_risk_max    THEN 'Low'
+          WHEN fa.risk_score <= s.medium_risk_max THEN 'Medium'
+          ELSE 'High'
+        END AS risk_level
       FROM invoice i
       JOIN vendor          v  ON i.vendor_id  = v.vendor_id
       LEFT JOIN fraud_analysis fa ON i.invoice_id = fa.invoice_id
+      CROSS JOIN system_setting s
       WHERE i.status = 'Pending'
       ORDER BY i.uploaded_at ASC
       LIMIT 10

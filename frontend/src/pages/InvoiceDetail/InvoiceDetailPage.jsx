@@ -76,11 +76,6 @@ const Icon = {
       <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   ),
-  chevron: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  ),
   check: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12" />
@@ -134,7 +129,7 @@ function timelineIcon(actionType) {
   }
 }
 
-function ReasonModal({ open, title, helper, onCancel, onSubmit, submitting }) {
+function ReasonModal({ open, title, helper, onCancel, onSubmit, submitting, optional = false }) {
   const [reason, setReason] = useState('');
 
   useEffect(() => {
@@ -142,6 +137,8 @@ function ReasonModal({ open, title, helper, onCancel, onSubmit, submitting }) {
   }, [open]);
 
   if (!open) return null;
+
+  const canSubmit = optional || reason.trim().length > 0;
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true">
@@ -151,7 +148,7 @@ function ReasonModal({ open, title, helper, onCancel, onSubmit, submitting }) {
         <textarea
           className="modal-textarea"
           rows={4}
-          placeholder="Enter a reason…"
+          placeholder={optional ? 'Enter a reason (optional)…' : 'Enter a reason…'}
           value={reason}
           onChange={e => setReason(e.target.value)}
           autoFocus
@@ -163,7 +160,7 @@ function ReasonModal({ open, title, helper, onCancel, onSubmit, submitting }) {
           <button
             className="modal-submit"
             onClick={() => onSubmit(reason.trim())}
-            disabled={!reason.trim() || submitting}
+            disabled={!canSubmit || submitting}
           >
             {submitting ? 'Saving…' : 'Confirm'}
           </button>
@@ -180,7 +177,6 @@ export default function InvoiceDetailPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showRaw, setShowRaw] = useState(false);
   const [modal, setModal] = useState({ open: false, action: null });
   const [submitting, setSubmitting] = useState(false);
 
@@ -263,29 +259,41 @@ export default function InvoiceDetailPage() {
 
     if (!targetStatus) return;
 
+    // Reject and Flag — reason mandatory, always.
     if (targetStatus === 'Rejected' || targetStatus === 'Flagged') {
       setModal({
         open: true,
         action,
         title: targetStatus === 'Rejected' ? 'Reject Invoice' : 'Flag Invoice',
         helper: `A reason is required when ${targetStatus.toLowerCase()} an invoice.`,
+        optional: false,
         targetStatus,
       });
       return;
     }
 
+    // Approve / Leave Pending after the first decision — reason mandatory.
     if (!isFirstDecision()) {
       setModal({
         open: true,
         action,
         title: targetStatus === 'Approved' ? 'Approve Invoice' : 'Leave Pending',
         helper: 'A reason is required for any status change after the first decision.',
+        optional: false,
         targetStatus,
       });
       return;
     }
 
-    submitStatusChange(targetStatus, null);
+    // Approve / Leave Pending on the FIRST decision — reason optional.
+    setModal({
+      open: true,
+      action,
+      title: targetStatus === 'Approved' ? 'Approve Invoice' : 'Leave Pending',
+      helper: 'You may add a reason for this decision, or leave it blank.',
+      optional: true,
+      targetStatus,
+    });
   };
 
   if (loading) {
@@ -394,7 +402,7 @@ export default function InvoiceDetailPage() {
                   <thead>
                     <tr>
                       <th>Field</th>
-                      <th>OCR Extracted</th>
+                      <th>Extracted Value</th>
                       <th>Saved Value</th>
                       <th>Match</th>
                     </tr>
@@ -414,15 +422,6 @@ export default function InvoiceDetailPage() {
                   </tbody>
                 </table>
 
-                <button className="raw-toggle" onClick={() => setShowRaw(s => !s)}>
-                  {Icon.chevron}
-                  {showRaw ? 'Hide Raw OCR Text' : 'View Raw OCR Text'}
-                </button>
-
-                {showRaw && (
-                  <pre className="raw-ocr">{ocr_result?.raw_text || 'No raw OCR text available.'}</pre>
-                )}
-
                 <div className="risk-panel">
                   <div className="risk-summary">
                     <div
@@ -439,8 +438,8 @@ export default function InvoiceDetailPage() {
                       <div className="level">{riskLevelLabel(riskScore)}</div>
                       <div className="desc">
                         {triggered_rules?.length
-                          ? `${triggered_rules.length} fraud rule${triggered_rules.length > 1 ? 's' : ''} triggered — manual review required`
-                          : 'No fraud rules triggered'}
+                          ? `${triggered_rules.length} risk indicator${triggered_rules.length > 1 ? 's' : ''} detected. Manual review required`
+                          : 'No risk indicator detected.'}
                       </div>
                     </div>
                   </div>
@@ -471,7 +470,7 @@ export default function InvoiceDetailPage() {
 
           <div className="action-body">
             <p className="ta-helper">
-              Reject and Flag require a mandatory reason. The first decision from Pending may be saved without one.
+              A reason is required for all decision changes on this invoice.
             </p>
 
             <div className="take-action">
@@ -549,6 +548,7 @@ export default function InvoiceDetailPage() {
         open={modal.open}
         title={modal.title}
         helper={modal.helper}
+        optional={modal.optional}
         submitting={submitting}
         onCancel={() => setModal({ open: false, action: null })}
         onSubmit={(reason) => submitStatusChange(modal.targetStatus, reason)}
@@ -584,7 +584,7 @@ function DocumentPreview({ storedPath, fileType, fileName }) {
 
   if (status === 'missing') {
     return (
-      <div className="doc-preview">
+      <div className="doc-preview doc-preview-missing">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <polyline points="14 2 14 8 20 8" />

@@ -75,8 +75,8 @@ const NAV_SECTIONS = [
   {
     title: 'Management',
     items: [
-      { key: 'admin',  label: 'Administration', icon: 'admin',  path: '/admin',  roles: ['Admin'] },
-      { key: 'config', label: 'Configuration',  icon: 'config', path: '/config', roles: ['Admin'] },
+      { key: 'admin',  label: 'Administration', icon: 'admin',  path: '/admin',               roles: ['Admin'] },
+      { key: 'config', label: 'Configuration',  icon: 'config', path: '/config/fraud-rules',  roles: ['Admin'] },
     ],
   },
   {
@@ -97,13 +97,19 @@ export default function Sidebar() {
   const userRole = user.role_name || 'Auditor';
   const userName = user.full_name || 'User';
   const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase();
-  console.log('SIDEBAR USER:', user);
-  console.log('ROLE:', userRole);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/');
+  };
+
+  // Highlight Configuration when on any /config/* route
+  const isActivePath = (itemPath) => {
+    if (itemPath === '/config/fraud-rules') {
+      return location.pathname.startsWith('/config');
+    }
+    return location.pathname === itemPath;
   };
 
   return (
@@ -138,7 +144,7 @@ export default function Sidebar() {
                 {visibleItems.map(item => (
                   <button
                     key={item.key}
-                    className={`nav-btn ${location.pathname === item.path ? 'active' : ''}`}
+                    className={`nav-btn ${isActivePath(item.path) ? 'active' : ''}`}
                     onClick={() => navigate(item.path)}
                   >
                     {icons[item.icon]}

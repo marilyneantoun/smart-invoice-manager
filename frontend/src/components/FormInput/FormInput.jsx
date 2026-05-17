@@ -45,10 +45,12 @@ export default function FormInput({
         {rightSlot}
       </div>
 
-      <div className={`field-error ${error ? 'show' : ''}`}>
-        <ErrorIcon />
-        {error}
-      </div>
+      {error && (
+  <div className="field-error show">
+    <ErrorIcon />
+    <span>{error}</span>
+  </div>
+)}
     </div>
   );
 }

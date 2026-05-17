@@ -193,9 +193,9 @@ function suggestedAction(level) {
    ================================================================ */
 const STEPS = [
   { label: 'Upload File',  sub: 'Select invoice file' },
-  { label: 'Review Data',  sub: 'Verify OCR results' },
-  { label: 'Processing',   sub: 'Fraud analysis' },
-  { label: 'Results',      sub: 'Review & decide' },
+  { label: 'Review Data',  sub: 'Confirm details' },
+  { label: 'Processing',   sub: 'Analyze risk' },
+  { label: 'Results',      sub: 'Take action' },
 ];
 
 function Stepper({ currentPhase }) {
@@ -328,7 +328,6 @@ function Phase1Upload({ file, setFile, onUpload, uploading }) {
         </div>
       )}
 
-
       {/* Upload Button */}
       <div className="actions">
         <button
@@ -337,11 +336,15 @@ function Phase1Upload({ file, setFile, onUpload, uploading }) {
           onClick={onUpload}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="17 8 12 3 7 8" />
-            <line x1="12" y1="3" x2="12" y2="15" />
+            <path d="M4 7V5a1 1 0 0 1 1-1h2" />
+            <path d="M17 4h2a1 1 0 0 1 1 1v2" />
+            <path d="M20 17v2a1 1 0 0 1-1 1h-2" />
+            <path d="M7 20H5a1 1 0 0 1-1-1v-2" />
+            <line x1="8" y1="9" x2="16" y2="9" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+            <line x1="8" y1="15" x2="13" y2="15" />
           </svg>
-          {uploading ? 'Extracting…' : 'Upload & Extract'}
+          {uploading ? 'Extracting…' : 'Extract Data'}
         </button>
       </div>
     </div>
@@ -353,10 +356,34 @@ function Phase1Upload({ file, setFile, onUpload, uploading }) {
    PHASE 2 — REVIEW EXTRACTED DATA
    ================================================================ */
 function Phase2Review({
-  file, ocrData, formData, setFormData, vendors,
-  onBack, onConfirm, submitting
+  file, ocrData, formData, setFormData, vendors, setVendors,
+  onBack, onConfirm, submitting, showToast,
 }) {
-  const [rawOpen, setRawOpen] = useState(true);
+  const [touched, setTouched] = useState({});
+
+  // Vendor request modal state
+  const [vendorReqOpen, setVendorReqOpen] = useState(false);
+  const [vendorReqSubmitting, setVendorReqSubmitting] = useState(false);
+  const [vendorReqSent, setVendorReqSent] = useState(false);
+  const [vendorReqData, setVendorReqData] = useState({
+    vendor_name: '',
+    country: '',
+    default_currency: 'USD',
+  });
+
+  // Refs for scroll-to-first-error behavior
+  const vendorRef = useRef(null);
+  const invoiceNumberRef = useRef(null);
+  const invoiceDateRef = useRef(null);
+  const amountRef = useRef(null);
+  const currencyRef = useRef(null);
+
+  // Detect: OCR extracted a vendor name but no approved vendor matches
+  const vendorNotFound =
+    ocrData?.extracted_vendor_name &&
+    !vendors.some(
+      (v) => v.vendor_name.toLowerCase() === ocrData.extracted_vendor_name.toLowerCase()
+    );
 
   // Track which fields were modified from OCR originals
   const isModified = (field) => {
@@ -368,15 +395,113 @@ function Phase2Review({
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    if (touched[field]) {
+      setTouched((prev) => ({ ...prev, [field]: false }));
+    }
   };
 
-  // Validate: all fields must have a non-empty value
-  // Use explicit checks so that amount=0 doesn't falsely fail
-  const isValid = formData.vendor_id !== '' &&
-                  formData.invoice_number !== '' &&
-                  formData.invoice_date !== '' &&
-                  formData.amount !== '' && formData.amount !== null && formData.amount !== undefined &&
-                  formData.currency !== '';
+  // Per-field validation
+  const getFieldError = (field) => {
+    const val = formData[field];
+    const isEmpty = val === '' || val === null || val === undefined;
+    if (!isEmpty) return '';
+    switch (field) {
+      case 'vendor_id':      return 'Please select a vendor.';
+      case 'invoice_number': return 'Invoice number is required.';
+      case 'invoice_date':   return 'Invoice date is required.';
+      case 'amount':         return 'Amount is required.';
+      case 'currency':       return 'Please select a currency.';
+      default:               return 'This field is required.';
+    }
+  };
+
+  const showError = (field) => touched[field] && getFieldError(field) !== '';
+
+  const isValid = ['vendor_id', 'invoice_number', 'invoice_date', 'amount', 'currency']
+    .every((f) => getFieldError(f) === '');
+
+  const handleConfirmClick = () => {
+    if (!isValid) {
+      setTouched({
+        vendor_id: true,
+        invoice_number: true,
+        invoice_date: true,
+        amount: true,
+        currency: true,
+      });
+      const fieldOrder = [
+        ['vendor_id',      vendorRef],
+        ['invoice_number', invoiceNumberRef],
+        ['invoice_date',   invoiceDateRef],
+        ['amount',         amountRef],
+        ['currency',       currencyRef],
+      ];
+      for (const [field, ref] of fieldOrder) {
+        if (getFieldError(field) && ref.current) {
+          ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => {
+            try { ref.current.focus({ preventScroll: true }); } catch {}
+          }, 300);
+          break;
+        }
+      }
+      return;
+    }
+    onConfirm();
+  };
+
+  // Open the request modal (pre-fill with OCR-extracted name)
+  const openVendorRequest = () => {
+    setVendorReqData({
+      vendor_name: ocrData?.extracted_vendor_name || '',
+      country: '',
+      default_currency: formData.currency || 'USD',
+    });
+    setVendorReqOpen(true);
+  };
+
+  // Submit the vendor request to the backend
+  const submitVendorRequest = async () => {
+    if (!vendorReqData.vendor_name.trim()) return;
+    setVendorReqSubmitting(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API}/vendors/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          vendor_name: vendorReqData.vendor_name.trim(),
+          country: vendorReqData.country.trim() || null,
+          default_currency: vendorReqData.default_currency,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(
+          'warning',
+          'Could Not Submit Request',
+          data.message || 'Failed to submit vendor request.'
+        );
+        setVendorReqSubmitting(false);
+        return;
+      }
+      setVendorReqSent(true);
+      setVendorReqOpen(false);
+      showToast(
+        'success',
+        'Vendor Request Submitted',
+        `"${data.vendor_name}" has been sent to an administrator for approval. You'll be able to select it once approved.`
+      );
+    } catch (err) {
+      console.error('Vendor request error:', err);
+      showToast('error', 'Request Failed', 'Could not reach the server. Please try again.');
+    } finally {
+      setVendorReqSubmitting(false);
+    }
+  };
 
   return (
     <div className="split-panel">
@@ -396,34 +521,34 @@ function Phase2Review({
           </span>
         </div>
         <div className="preview-body">
-  {file && file.type === 'application/pdf' ? (
-    <iframe
-      src={URL.createObjectURL(file) + '#toolbar=0&navpanes=0&scrollbar=1'}
-      title="Invoice PDF Preview"
-      style={{
-        width: '100%',
-        height: '100%',
-        minHeight: 420,
-        border: 'none',
-        borderRadius: 4,
-        background: '#fff',
-        pointerEvents: 'auto',
-      }}
-    />
-  ) : file ? (
-    <img
-      src={URL.createObjectURL(file)}
-      alt="Invoice preview"
-      style={{
-        maxWidth: '100%',
-        maxHeight: 420,
-        borderRadius: 8,
-        objectFit: 'contain',
-        userSelect: 'none',
-      }}
-    />
-  ) : null}
-</div>
+          {file && file.type === 'application/pdf' ? (
+            <iframe
+              src={URL.createObjectURL(file) + '#toolbar=0&navpanes=0&scrollbar=1'}
+              title="Invoice PDF Preview"
+              style={{
+                width: '100%',
+                height: '100%',
+                minHeight: 420,
+                border: 'none',
+                borderRadius: 4,
+                background: '#fff',
+                pointerEvents: 'auto',
+              }}
+            />
+          ) : file ? (
+            <img
+              src={URL.createObjectURL(file)}
+              alt="Invoice preview"
+              style={{
+                maxWidth: '100%',
+                maxHeight: 420,
+                borderRadius: 8,
+                objectFit: 'contain',
+                userSelect: 'none',
+              }}
+            />
+          ) : null}
+        </div>
         <div className="preview-filename">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -441,19 +566,64 @@ function Phase2Review({
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
-            Extracted Invoice Data
+            Extracted Details
           </span>
           <span className="ocr-badge">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            OCR Complete
+            Extraction Complete
           </span>
         </div>
 
         <div className="form-body">
-          {/* OCR Suggestion Banner */}
-          {ocrData?.extracted_vendor_name && (
+          {/* Vendor-not-found WARNING — shown only when OCR vendor isn't in approved list */}
+          {vendorNotFound && !vendorReqSent && (
+            <div className="vendor-warning">
+              <svg className="vendor-warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <div className="vendor-warning-body">
+                <div className="vendor-warning-title">Vendor not found in approved list</div>
+                <div className="vendor-warning-text">
+                  The system identified the vendor: <strong>"{ocrData.extracted_vendor_name}"</strong> that
+                   is not yet approved in the system.Please request vendor approval before proceeding.
+                </div>
+                <button
+                  className="vendor-warning-btn"
+                  type="button"
+                  onClick={openVendorRequest}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 5v14M5 12h14" />
+                  </svg>
+                  Request Vendor Approval
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Confirmation banner — shown after request is submitted */}
+          {vendorReqSent && (
+            <div className="vendor-warning sent">
+              <svg className="vendor-warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
+              </svg>
+              <div className="vendor-warning-body">
+                <div className="vendor-warning-title">Request sent — awaiting admin approval</div>
+                <div className="vendor-warning-text">
+                  Once the administrator approves the vendor, you can refresh the page and
+                  select it from the dropdown to continue with this invoice.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* OCR Suggestion Banner — only shown when vendor IS in the approved list */}
+          {ocrData?.extracted_vendor_name && !vendorNotFound && (
             <div className="ocr-suggestion">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -461,7 +631,7 @@ function Phase2Review({
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
               <span>
-                OCR detected vendor: <strong>"{ocrData.extracted_vendor_name}"</strong> — please verify and select from the dropdown below.
+                Detected vendor: <strong>"{ocrData.extracted_vendor_name}"</strong>. Please verify and select from the dropdown below.
               </span>
             </div>
           )}
@@ -472,9 +642,11 @@ function Phase2Review({
               Vendor <span className="required">*</span>
             </label>
             <select
-              className="form-select"
+              ref={vendorRef}
+              className={`form-select${showError('vendor_id') ? ' has-error' : ''}`}
               value={formData.vendor_id || ''}
               onChange={(e) => handleChange('vendor_id', e.target.value)}
+              aria-invalid={showError('vendor_id')}
             >
               <option value="">— Select Vendor —</option>
               {vendors.map((v) => (
@@ -483,13 +655,24 @@ function Phase2Review({
                 </option>
               ))}
             </select>
-            <div className="field-hint">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              Only approved & active vendors shown
-            </div>
+            {showError('vendor_id') ? (
+              <div className="field-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                {getFieldError('vendor_id')}
+              </div>
+            ) : (
+              <div className="field-hint">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                Only approved & active vendors shown
+              </div>
+            )}
           </div>
 
           {/* Invoice Number */}
@@ -498,11 +681,23 @@ function Phase2Review({
               Invoice Number <span className="required">*</span>
             </label>
             <input
-              className="form-input"
+              ref={invoiceNumberRef}
+              className={`form-input${showError('invoice_number') ? ' has-error' : ''}`}
               type="text"
               value={formData.invoice_number || ''}
               onChange={(e) => handleChange('invoice_number', e.target.value)}
+              aria-invalid={showError('invoice_number')}
             />
+            {showError('invoice_number') && (
+              <div className="field-error">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                {getFieldError('invoice_number')}
+              </div>
+            )}
           </div>
 
           {/* Date + Amount Row */}
@@ -512,31 +707,53 @@ function Phase2Review({
                 Invoice Date <span className="required">*</span>
               </label>
               <input
-                className="form-input"
+                ref={invoiceDateRef}
+                className={`form-input${showError('invoice_date') ? ' has-error' : ''}`}
                 type="date"
                 value={formData.invoice_date ?? ''}
                 onChange={(e) => handleChange('invoice_date', e.target.value)}
+                aria-invalid={showError('invoice_date')}
               />
+              {showError('invoice_date') && (
+                <div className="field-error">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  {getFieldError('invoice_date')}
+                </div>
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">
                 Amount <span className="required">*</span>
               </label>
               <input
-                 className="form-input"
-                 type="text"
-                 inputMode="decimal"
-                 placeholder="e.g. 3,500.00"
-                 value={formData.amount ?? ''}
+                ref={amountRef}
+                className={`form-input${showError('amount') ? ' has-error' : ''}`}
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g. 3,500.00"
+                value={formData.amount ?? ''}
                 onChange={(e) => {
-                const val = e.target.value;
-                // Allow only digits, commas, and one decimal point
-                if (val === '' || /^[\d,]*\.?\d*$/.test(val)) {
-                handleChange('amount', val);
-                }
+                  const val = e.target.value;
+                  if (val === '' || /^[\d,]*\.?\d*$/.test(val)) {
+                    handleChange('amount', val);
+                  }
                 }}
+                aria-invalid={showError('amount')}
               />
-              {isModified('amount') && (
+              {showError('amount') ? (
+                <div className="field-error">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  {getFieldError('amount')}
+                </div>
+              ) : isModified('amount') && (
                 <div className="field-hint modified">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -554,33 +771,27 @@ function Phase2Review({
               Currency <span className="required">*</span>
             </label>
             <select
-              className="form-select"
+              ref={currencyRef}
+              className={`form-select${showError('currency') ? ' has-error' : ''}`}
               value={formData.currency || ''}
               onChange={(e) => handleChange('currency', e.target.value)}
+              aria-invalid={showError('currency')}
             >
+              <option value="">— Select Currency —</option>
               <option value="USD">USD — US Dollar</option>
               <option value="EUR">EUR — Euro</option>
             </select>
-          </div>
-
-          {/* Raw OCR Text */}
-          {ocrData?.raw_text && (
-            <div className="raw-ocr">
-              <button
-                className={`raw-ocr-toggle${rawOpen ? ' open' : ''}`}
-                onClick={() => setRawOpen(!rawOpen)}
-                type="button"
-              >
+            {showError('currency') && (
+              <div className="field-error">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="9 18 15 12 9 6" />
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                Raw OCR Text
-              </button>
-              {rawOpen && (
-                <div className="raw-ocr-content">{ocrData.raw_text}</div>
-              )}
-            </div>
-          )}
+                {getFieldError('currency')}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer */}
@@ -594,19 +805,121 @@ function Phase2Review({
           </button>
           <button
             className="btn btn-primary"
-            disabled={!isValid || submitting}
-            onClick={onConfirm}
+            disabled={submitting}
+            onClick={handleConfirmClick}
           >
-            {submitting ? 'Saving…' : 'Confirm & Save'}
+            {submitting ? 'Saving…' : 'Confirm'}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </button>
         </div>
       </div>
+
+      {/* Vendor Request Modal */}
+      {vendorReqOpen && (
+        <div className="reason-overlay" onClick={() => !vendorReqSubmitting && setVendorReqOpen(false)}>
+          <div className="reason-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="reason-modal-header">
+              <span className="reason-modal-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <line x1="20" y1="8" x2="20" y2="14" />
+                  <line x1="23" y1="11" x2="17" y2="11" />
+                </svg>
+                Request New Vendor Approval
+              </span>
+              <button
+                className="reason-modal-close"
+                onClick={() => setVendorReqOpen(false)}
+                disabled={vendorReqSubmitting}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="reason-modal-body">
+              <p className="vendor-req-intro">
+                Submit this vendor for admin approval. The administrator will review and
+                complete the remaining details. You can proceed with this invoice once the
+                vendor has been approved.
+              </p>
+
+              <div className="form-group">
+                <label className="form-label">
+                  Vendor Name <span className="required">*</span>
+                </label>
+                <input
+                  className="form-input"
+                  type="text"
+                  value={vendorReqData.vendor_name}
+                  onChange={(e) =>
+                    setVendorReqData((p) => ({ ...p, vendor_name: e.target.value }))
+                  }
+                  placeholder="e.g. Acme Logistics"
+                  autoFocus
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Country</label>
+                  <input
+                    className="form-input"
+                    type="text"
+                    value={vendorReqData.country}
+                    onChange={(e) =>
+                      setVendorReqData((p) => ({ ...p, country: e.target.value }))
+                    }
+                    placeholder="e.g. Lebanon"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    Default Currency <span className="required">*</span>
+                  </label>
+                  <select
+                    className="form-select"
+                    value={vendorReqData.default_currency}
+                    onChange={(e) =>
+                      setVendorReqData((p) => ({ ...p, default_currency: e.target.value }))
+                    }
+                  >
+                    <option value="USD">USD — US Dollar</option>
+                    <option value="EUR">EUR — Euro</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="reason-modal-footer">
+              <button
+                className="btn btn-ghost"
+                onClick={() => setVendorReqOpen(false)}
+                disabled={vendorReqSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={submitVendorRequest}
+                disabled={!vendorReqData.vendor_name.trim() || vendorReqSubmitting}
+              >
+                {vendorReqSubmitting ? 'Submitting…' : 'Submit Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+
 /* ================================================================
    PHASE 3 — PROCESSING
    ================================================================ */
@@ -614,15 +927,15 @@ function Phase3Processing({ invoiceNumber }) {
   const [progress, setProgress] = useState(0);
   const [steps, setSteps] = useState([
     { label: 'Invoice Record Saved',     detail: 'Status set to Pending, all fields stored', status: 'pending', time: null },
-    { label: 'OCR Results Stored',        detail: 'Extracted data and raw text saved',        status: 'pending', time: null },
+    { label: 'Extracted Results Stored',        detail: 'Extracted data saved',        status: 'pending', time: null },
     { label: 'Audit Trail Entry Created', detail: 'Created → Pending logged to invoice_history', status: 'pending', time: null },
-    { label: 'Running Fraud Analysis',    detail: 'Checking 12 active rules…',               status: 'pending', time: null },
-    { label: 'Generating Results',        detail: 'Risk score, level, and triggered reasons', status: 'pending', time: null },
+    { label: 'Running Fraud Analysis',    detail: 'Checking 8 active rules…',                status: 'pending', time: null },
+    { label: 'Generating Results',        detail: 'Risk score, level, and detected reasons', status: 'pending', time: null },
   ]);
 
   useEffect(() => {
     // Simulate progressive checklist completion
-    const timings = [400, 800, 1000, 2500, 3500];
+    const timings = [700, 1400, 2200, 3800, 5200];
     const durations = ['0.4s', '0.2s', '0.1s', null, null];
 
     timings.forEach((t, i) => {
@@ -710,7 +1023,10 @@ function Phase3Processing({ invoiceNumber }) {
           <line x1="12" y1="16" x2="12" y2="12" />
           <line x1="12" y1="8" x2="12.01" y2="8" />
         </svg>
-        All invoices are saved as <strong style={{ margin: '0 3px' }}>Pending</strong> regardless of risk score. Human review is always required.
+        <span className="tip-text">
+          <span>All invoices are saved as pending regardless of the risk score,</span>
+          <span>human review is always required.</span>
+        </span>
       </div>
     </div>
   );
@@ -756,7 +1072,7 @@ function Phase4Results({ results, formData, vendors, onAction, onUploadAnother, 
         <div>
           <div className="success-banner-text">Invoice Saved Successfully</div>
           <div className="success-banner-sub">
-            {formData?.invoice_number} from {vendorName} — Status: Pending — Fraud analysis complete
+            {formData?.invoice_number} from {vendorName} — Status: Pending
           </div>
         </div>
       </div>
@@ -796,14 +1112,19 @@ function Phase4Results({ results, formData, vendors, onAction, onUploadAnother, 
               <span className="score-detail-value">{vendorName}</span>
             </div>
             <div className="score-detail-row">
-              <span className="score-detail-label">Amount</span>
-              <span className="score-detail-value">
-                {formData?.currency} {Number(formData?.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
+             <span className="score-detail-label">Amount</span>
+             <span className="score-detail-value">
+             {formData?.currency}{' '}
+            {Number(String(formData?.amount).replace(/,/g, '')).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,})}
+             </span>
             </div>
+
+
             <div className="score-detail-row">
-              <span className="score-detail-label">Rules Triggered</span>
-              <span className="score-detail-value">{triggeredRules.length} of 12</span>
+              <span className="score-detail-label">Indicators Detected</span>
+              <span className="score-detail-value">{triggeredRules.length} of 8</span>
             </div>
             <div className="score-detail-row">
               <span className="score-detail-label">Analyzed At</span>
@@ -821,7 +1142,7 @@ function Phase4Results({ results, formData, vendors, onAction, onUploadAnother, 
               <line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
             <span>
-              <strong>System suggestion:</strong> {suggestedAction(level)}. This is a suggestion only — final decision requires human review.
+              <strong>Recommended action:</strong> {suggestedAction(level)}.A human review is required before final approval.
             </span>
           </div>
         </div>
@@ -833,9 +1154,9 @@ function Phase4Results({ results, formData, vendors, onAction, onUploadAnother, 
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
-              Triggered Fraud Rules
+              Detected Risk Indicators
             </span>
-            <span className="rules-count">{triggeredRules.length} Rule{triggeredRules.length !== 1 ? 's' : ''}</span>
+            <span className="rules-count">{triggeredRules.length} Indicator{triggeredRules.length !== 1 ? 's' : ''}</span>
           </div>
           <div className="rules-body">
             {triggeredRules.length === 0 ? (
@@ -989,10 +1310,10 @@ export default function UploadInvoicePage() {
 
   /* ── Page subtitle per phase ── */
   const subtitles = [
-    'Upload a new invoice for OCR extraction and fraud analysis',
+    'Upload a new invoice for data extraction and fraud analysis',
     'Review and verify the extracted invoice data before submission',
     'Saving invoice and running fraud analysis…',
-    'Fraud analysis complete — review results and take action',
+    'Fraud analysis complete.Review results and take action',
   ];
 
   /* ── Phase 1 → 2: Upload file & run OCR ── */
@@ -1121,11 +1442,11 @@ export default function UploadInvoicePage() {
         triggered_rules: data.triggered_rules || [],
       });
 
-      // Wait for processing animation to finish (~4s), then show results
+      // Wait for processing animation to finish (~6.2s), then show results
       setTimeout(() => {
         setPhase(4);
         setSubmitting(false);
-      }, 4200);
+      }, 6200);
     } catch (err) {
       console.error('Save error:', err);
       const errorMsg = err.message || 'Failed to save invoice. Please try again.';
@@ -1222,6 +1543,7 @@ export default function UploadInvoicePage() {
           onSubmit={handleReasonSubmit}
           onCancel={() => setReasonModal(null)}
         />
+
         {/* Page Header */}
         <div className="page-header">
           <div>
@@ -1250,9 +1572,11 @@ export default function UploadInvoicePage() {
             formData={formData}
             setFormData={setFormData}
             vendors={vendors}
+            setVendors={setVendors}
             onBack={() => setPhase(1)}
             onConfirm={handleConfirmAndSave}
             submitting={submitting}
+            showToast={showToast}
           />
         )}
 

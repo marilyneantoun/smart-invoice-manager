@@ -26,18 +26,13 @@ function formatAmount(amount, currency) {
   return `${symbol}${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function riskLevelFromScore(score) {
-  if (score === null || score === undefined) return 'low';
-  if (score >= 61) return 'high';
-  if (score >= 31) return 'medium';
-  return 'low';
-}
-
-function riskLabel(score) {
-  const level = riskLevelFromScore(score);
-  if (level === 'high')   return { text: 'High',   cls: 'risk-high' };
-  if (level === 'medium') return { text: 'Medium', cls: 'risk-medium' };
-  return                         { text: 'Low',    cls: 'risk-low' };
+// Read the risk_level string written by the fraud engine (single source of truth).
+// Falls back to 'Low' when no fraud_analysis row exists yet.
+function riskLabel(level) {
+  const normalized = (level || 'Low').toString();
+  if (normalized === 'High')   return { text: 'High',   cls: 'risk-high' };
+  if (normalized === 'Medium') return { text: 'Medium', cls: 'risk-medium' };
+  return                              { text: 'Low',    cls: 'risk-low' };
 }
 
 function statusClass(status) {
@@ -130,6 +125,7 @@ export default function InvoiceListPage() {
     { key: 'all',      label: 'All' },
     { key: 'pending',  label: 'Pending' },
     { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
     { key: 'flagged',  label: 'Flagged' },
   ];
 
@@ -169,6 +165,7 @@ export default function InvoiceListPage() {
 
       if (activeTab === 'pending')  params.append('status', 'Pending');
       if (activeTab === 'approved') params.append('status', 'Approved');
+      if (activeTab === 'rejected') params.append('status', 'Rejected');
       if (activeTab === 'flagged')  params.append('status', 'Flagged');
 
       const token = localStorage.getItem('token');
@@ -268,7 +265,7 @@ export default function InvoiceListPage() {
             <SearchIcon />
             <input
               type="text"
-              placeholder="Search by invoice nb or vendor"
+              placeholder="Search by invoice number"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -277,17 +274,17 @@ export default function InvoiceListPage() {
           <div className="filter-control dropdown risk-filter">
             <RiskIcon />
             <select value={riskFilter} onChange={handleRiskFilterChange}>
-              <option value="">All Risk</option>
-              <option value="low">Low Risk</option>
-              <option value="medium">Medium Risk</option>
-              <option value="high">High Risk</option>
+              <option value="">Risk Level</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
             </select>
           </div>
 
           <div className="filter-control dropdown vendor-filter">
             <VendorIcon />
             <select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}>
-              <option value="">All Vendors</option>
+              <option value="">Vendor</option>
               {vendors.map(v => (
                 <option key={v.vendor_id} value={v.vendor_id}>{v.vendor_name}</option>
               ))}
@@ -325,8 +322,8 @@ export default function InvoiceListPage() {
                   <SortableTh label="Invoice Date" field="invoice_date" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
                   <SortableTh label="Amount" field="amount" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} className="amount-heading" />
                   <th>Currency</th>
-                  <SortableTh label="Status" field="status" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
-                  <SortableTh label="Risk" field="risk_score" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} />
+                  <th>Status</th>
+                  <th>Risk</th>
                   <th>Uploaded At</th>
                 </tr>
               </thead>
@@ -340,29 +337,29 @@ export default function InvoiceListPage() {
                   <tr><td colSpan="8" className="empty-state">No invoices found.</td></tr>
                 ) : (
                   invoices.map(inv => {
-                    const risk = riskLabel(inv.risk_score);
+                    const risk = riskLabel(inv.risk_level);
                     return (
                       <tr
                         key={inv.invoice_id}
                         className={risk.cls === 'risk-high' ? 'row-high-risk' : ''}
                         onClick={() => navigate(`/invoices/${inv.invoice_id}`)}
                       >
-                        <td className="invoice-num">{inv.invoice_number}</td>
-                        <td className="vendor-cell">{inv.vendor_name || '—'}</td>
-                        <td className="date-cell">{formatDate(inv.invoice_date)}</td>
-                        <td className="amount">{formatAmount(inv.amount, inv.currency)}</td>
-                        <td className="currency-cell">{inv.currency || '—'}</td>
-                        <td>
+                        <td className="invoice-num" data-label="Invoice Number">{inv.invoice_number}</td>
+                        <td className="vendor-cell" data-label="Vendor Name">{inv.vendor_name || '—'}</td>
+                        <td className="date-cell" data-label="Invoice Date">{formatDate(inv.invoice_date)}</td>
+                        <td className="amount" data-label="Amount">{formatAmount(inv.amount, inv.currency)}</td>
+                        <td className="currency-cell" data-label="Currency">{inv.currency || '—'}</td>
+                        <td data-label="Status">
                           <span className={`label status ${statusClass(inv.status)}`}>
                             {inv.status || '—'}
                           </span>
                         </td>
-                        <td>
+                        <td data-label="Risk">
                           <span className="label">
                             {risk.text}
                           </span>
                         </td>
-                        <td className="date-cell">{formatDate(inv.uploaded_at)}</td>
+                        <td className="date-cell" data-label="Uploaded At">{formatDate(inv.uploaded_at)}</td>
                       </tr>
                     );
                   })

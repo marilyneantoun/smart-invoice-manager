@@ -204,23 +204,26 @@ def parse_amount(text):
     """
     Extract total/amount from patterns like:
       Total: $3,500.00
-      Total: EUR 15,340.57
-      Amount Due: 7,250.50
-      Grand Total: 8200.00
+      TOTAL DUE USD 3,322.00
+      Amount Due: USD 3,322.00
+      Grand Total: EUR 15,340.57
+      Balance Due 8200.00
 
-    Returns a tuple (display_str, numeric_value):
-      - display_str:   the amount as it appeared in the document (e.g. "3,500.00")
-      - numeric_value: the parsed float for database storage (e.g. 3500.0)
+    Handles currency codes (USD/EUR/GBP/CHF) and symbols ($€£), in any case.
+
+    Returns a tuple (display_str, numeric_value) of the largest amount found,
+    which is typically the grand total.
     """
     patterns = [
-        r'(?:[Tt]otal|[Aa]mount\s*[Dd]ue|[Gg]rand\s*[Tt]otal|[Bb]alance\s*[Dd]ue)\s*[:\s]*[€$£]?\s*([\d,]+\.?\d*)',
-        r'(?:Total|TOTAL)\s*[:\s]*(?:USD|EUR|GBP|CHF)?\s*([\d,]+\.?\d*)',
+        # Preferred: amounts with two decimal places (proper money formatting)
+        r'(?i)(?:total\s+due|amount\s+due|grand\s+total|balance\s+due|net\s+payable|amount\s+payable|total)\s*[:\s]*(?:USD|EUR|GBP|CHF)?\s*[€$£]?\s*([\d,]+\.\d{2})',
+        # Fallback: integer amounts (no decimal places)
+        r'(?i)(?:total\s+due|amount\s+due|grand\s+total|balance\s+due|net\s+payable|total)\s*[:\s]*(?:USD|EUR|GBP|CHF)?\s*[€$£]?\s*([\d,]+)',
     ]
 
     results = []
     for pattern in patterns:
-        matches = re.finditer(pattern, text)
-        for match in matches:
+        for match in re.finditer(pattern, text):
             original_str = match.group(1).strip()
             numeric_str = original_str.replace(',', '')
             try:
@@ -232,7 +235,7 @@ def parse_amount(text):
     # Return the largest amount found (usually the grand total)
     if results:
         best = max(results, key=lambda x: x[1])
-        return best  # (display_str, numeric_value)
+        return best
     return None
 
 
