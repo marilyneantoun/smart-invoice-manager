@@ -3,11 +3,12 @@
 //
 // Vendor-related endpoints (Administration page + invoice flows).
 //
-//   GET    /api/vendors            — list vendors (filterable)
-//   GET    /api/vendors/:id        — single vendor detail
-//   POST   /api/vendors            — create vendor   (Admin)
-//   PUT    /api/vendors/:id        — update vendor   (Admin)
-//   PATCH  /api/vendors/:id/status — toggle is_active (Admin)
+//   GET    /api/vendors             — list vendors (filterable)
+//   GET    /api/vendors/:id         — single vendor detail
+//   POST   /api/vendors/request     — accountant requests a new vendor
+//   POST   /api/vendors             — create vendor   (Admin)
+//   PUT    /api/vendors/:id         — update vendor   (Admin)
+//   PATCH  /api/vendors/:id/status  — toggle is_active   (Admin)
 //   PATCH  /api/vendors/:id/approve — toggle is_approved (Admin)
 //
 // Columns are aliased so the frontend can read:
@@ -78,6 +79,74 @@ router.get('/:id', protect, async (req, res) => {
   }
 });
 
+// ── POST /api/vendors/request ──
+// Accountant requests approval for a new vendor that doesn't yet exist
+// in the approved list. Creates a vendor row with is_approved = FALSE,
+// is_active = TRUE, and created_by = current user. The admin will see
+// it in Vendor Management (filterable by is_approved = FALSE) and can
+// fill in the remaining details before approving.
+router.post('/request', protect, async (req, res) => {
+  try {
+    const { vendor_name, country, default_currency } = req.body;
+
+    // Basic validation
+    if (!vendor_name || !vendor_name.trim()) {
+      return res.status(400).json({ message: 'Vendor name is required.' });
+    }
+    if (!default_currency || !['USD', 'EUR'].includes(default_currency)) {
+      return res.status(400).json({ message: 'A valid default currency (USD or EUR) is required.' });
+    }
+
+    const cleanName = vendor_name.trim();
+
+    // Check if a vendor with this name already exists (case-insensitive)
+    const [existing] = await pool.query(
+      'SELECT vendor_id, vendor_name, is_approved FROM vendor WHERE LOWER(vendor_name) = LOWER(?) LIMIT 1',
+      [cleanName]
+    );
+    if (existing.length > 0) {
+      const v = existing[0];
+      return res.status(409).json({
+        message: v.is_approved
+          ? `A vendor named "${v.vendor_name}" already exists and is approved. Please refresh the page and select it from the dropdown.`
+          : `A request for "${v.vendor_name}" has already been submitted and is awaiting admin approval.`,
+        existing_vendor_id: v.vendor_id,
+        already_approved: !!v.is_approved,
+      });
+    }
+
+    // Generate placeholder unique values for vendor_code and email
+    // (schema requires them NOT NULL + UNIQUE; admin will fill in real values on approval)
+    const ts = Date.now();
+    const placeholderCode  = `REQ-${ts}`;
+    const placeholderEmail = `pending+${ts}@invoiceshield.local`;
+
+    const [result] = await pool.query(
+      `INSERT INTO vendor
+        (vendor_name, vendor_code, email, country, default_currency,
+         is_active, is_approved, registration_date, created_by)
+       VALUES (?, ?, ?, ?, ?, TRUE, FALSE, NOW(), ?)`,
+      [
+        cleanName,
+        placeholderCode,
+        placeholderEmail,
+        country?.trim() || null,
+        default_currency,
+        req.user.user_id,
+      ]
+    );
+
+    return res.status(201).json({
+      message: 'Vendor approval request submitted.',
+      vendor_id: result.insertId,
+      vendor_name: cleanName,
+    });
+  } catch (err) {
+    console.error('POST /vendors/request error:', err);
+    return res.status(500).json({ message: 'Failed to submit vendor request.' });
+  }
+});
+
 // ── POST /api/vendors ──  (Admin only)
 // Body:
 //   { vendor_name, vendor_code, email, phone_number?, address?,
@@ -101,6 +170,19 @@ router.post('/', protect, allowRoles('Admin'), async (req, res) => {
       });
     }
 
+    // Clean and validate phone number.
+    // Expected saved format: country code + phone digits, e.g. +96170123456
+    const cleanPhoneNumber =
+      phone_number === null || phone_number === undefined || String(phone_number).trim() === ''
+        ? null
+        : String(phone_number).trim();
+
+    if (cleanPhoneNumber && !/^\+\d+$/.test(cleanPhoneNumber)) {
+      return res.status(400).json({
+        message: 'Phone number must contain a country code followed by digits only, for example +96170123456.',
+      });
+    }
+
     // Reject duplicates up front for friendlier errors
     const [dup] = await pool.query(
       'SELECT vendor_id FROM vendor WHERE vendor_code = ? OR email = ? LIMIT 1',
@@ -118,8 +200,15 @@ router.post('/', protect, allowRoles('Admin'), async (req, res) => {
           country, default_currency, is_active, is_approved, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, ?, ?)`,
       [
-        vendor_name, vendor_code, email, phone_number, address,
-        country, default_currency, !!is_approved, req.user.user_id,
+        vendor_name,
+        vendor_code,
+        email,
+        cleanPhoneNumber,
+        address,
+        country,
+        default_currency,
+        !!is_approved,
+        req.user.user_id,
       ]
     );
 
@@ -138,6 +227,25 @@ router.post('/', protect, allowRoles('Admin'), async (req, res) => {
 router.put('/:id', protect, allowRoles('Admin'), async (req, res) => {
   try {
     const id = req.params.id;
+
+    // Clean and validate phone number if it is being updated.
+    // Expected saved format: country code + phone digits, e.g. +96170123456
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, 'phone_number')) {
+      const rawPhoneNumber = req.body.phone_number;
+
+      const cleanPhoneNumber =
+        rawPhoneNumber === null || rawPhoneNumber === undefined || String(rawPhoneNumber).trim() === ''
+          ? null
+          : String(rawPhoneNumber).trim();
+
+      if (cleanPhoneNumber && !/^\+\d+$/.test(cleanPhoneNumber)) {
+        return res.status(400).json({
+          message: 'Phone number must contain a country code followed by digits only, for example +96170123456.',
+        });
+      }
+
+      req.body.phone_number = cleanPhoneNumber;
+    }
 
     // Only the columns we actually allow to be patched
     const allowed = [

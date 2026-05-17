@@ -458,7 +458,7 @@ export default function AuditTrailPage() {
                   <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                 </svg>
                 <select value={invAction} onChange={e => setInvAction(e.target.value)}>
-                  <option value="">All Actions</option>
+                  <option value="">Action Type</option>
                   <option value="Created">Created</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>
@@ -472,7 +472,7 @@ export default function AuditTrailPage() {
                   <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" />
                 </svg>
                 <select value={invUserId} onChange={e => setInvUserId(e.target.value)}>
-                  <option value="">All Users</option>
+                  <option value="">User</option>
                   {users.map(u => (
                     <option key={u.user_id} value={u.user_id}>
                       {u.full_name} ({u.role_name})
@@ -528,12 +528,14 @@ export default function AuditTrailPage() {
 
                   {!invLoading && !invError && invEvents.map(row => (
                     <tr key={row.history_id}>
-                      <td>
+                      <td data-label="Timestamp">
                         <div className="audit-date-main">{formatDate(row.changed_at)}</div>
                         <div className="audit-date-sub">{formatTime(row.changed_at)}</div>
                       </td>
-                      <td><ActionBadge action={row.action_type} /></td>
-                      <td>
+                      <td data-label="Action">
+                        <ActionBadge action={row.action_type} />
+                      </td>
+                      <td data-label="Invoice">
                         <button
                           className="audit-invoice-link"
                           onClick={() => navigate(`/invoices/${row.invoice_id}`)}
@@ -541,12 +543,12 @@ export default function AuditTrailPage() {
                           {row.invoice_number}
                         </button>
                       </td>
-                      <td>
+                      <td data-label="Change">
                         <ChangeCell reason={row.reason}>
                           {buildInvoiceChange(row)}
                         </ChangeCell>
                       </td>
-                      <td>
+                      <td data-label="By">
                         <div className="audit-user-name">{row.changed_by_name || '—'}</div>
                         <div className="audit-user-role">{row.changed_by_role || ''}</div>
                       </td>
@@ -591,7 +593,7 @@ export default function AuditTrailPage() {
                   <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                 </svg>
                 <select value={ruleAction} onChange={e => setRuleAction(e.target.value)}>
-                  <option value="">All Actions</option>
+                  <option value="">Action Type</option>
                   <option value="Enabled">Enabled</option>
                   <option value="Disabled">Disabled</option>
                   <option value="Updated">Updated</option>
@@ -603,7 +605,7 @@ export default function AuditTrailPage() {
                   <path d="M9 12l2 2 4-4" /><path d="M21 12c0 4.97-4.03 9-9 9s-9-4.03-9-9 4.03-9 9-9 9 4.03 9 9z" />
                 </svg>
                 <select value={ruleRuleId} onChange={e => setRuleRuleId(e.target.value)}>
-                  <option value="">All Rules</option>
+                  <option value="">Rule</option>
                   {ruleList.map(r => (
                     <option key={r.rule_id} value={r.rule_id}>{r.rule_name}</option>
                   ))}
@@ -657,18 +659,22 @@ export default function AuditTrailPage() {
 
                   {!ruleLoading && !ruleError && ruleEvents.map(row => (
                     <tr key={row.history_id}>
-                      <td>
+                      <td data-label="Timestamp">
                         <div className="audit-date-main">{formatDate(row.changed_at)}</div>
                         <div className="audit-date-sub">{formatTime(row.changed_at)}</div>
                       </td>
-                      <td><ActionBadge action={row.action_type} /></td>
-                      <td className="audit-rule-name">{row.rule_name}</td>
-                      <td>
+                      <td data-label="Action">
+                        <ActionBadge action={row.action_type} />
+                      </td>
+                      <td className="audit-rule-name" data-label="Rule">
+                        {row.rule_name}
+                      </td>
+                      <td data-label="Change">
                         <ChangeCell reason={row.reason}>
                           {buildRuleChange(row)}
                         </ChangeCell>
                       </td>
-                      <td>
+                      <td data-label="By">
                         <div className="audit-user-name">{row.changed_by_name || '—'}</div>
                         <div className="audit-user-role">{row.changed_by_role || ''}</div>
                       </td>

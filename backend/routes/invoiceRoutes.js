@@ -504,7 +504,15 @@ router.get(
         const riskCap = risk.charAt(0).toUpperCase() + risk.slice(1).toLowerCase();
         const allowedRisk = ['Low', 'Medium', 'High'];
         if (allowedRisk.includes(riskCap)) {
-          where.push('fa.risk_level = ?');
+          // Compare against the LIVE-derived band, not the stored column.
+          // This keeps filtering consistent with what the UI displays after
+          // thresholds are tuned.
+          where.push(`(CASE
+            WHEN fa.risk_score IS NULL              THEN 'Low'
+            WHEN fa.risk_score <= s.low_risk_max    THEN 'Low'
+            WHEN fa.risk_score <= s.medium_risk_max THEN 'Medium'
+            ELSE 'High'
+          END) = ?`);
           params.push(riskCap);
         }
       }
@@ -526,11 +534,14 @@ router.get(
       const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
       // ── Count total matching rows (for pagination) ──
+      // CROSS JOIN system_setting so the risk filter (if any) can resolve the
+      // live-derived band. There is exactly one row in system_setting.
       const [countRows] = await pool.query(
         `SELECT COUNT(*) AS total
            FROM invoice i
            JOIN vendor v          ON v.vendor_id = i.vendor_id
            LEFT JOIN fraud_analysis fa ON fa.invoice_id = i.invoice_id
+           CROSS JOIN system_setting s
           ${whereClause}`,
         params
       );
@@ -540,6 +551,12 @@ router.get(
       // Sort applied after WHERE; secondary sort on invoice_id for stable order.
       // LIMIT/OFFSET inlined as integers (already validated above) — mysql2
       // does not always interpolate them cleanly as bound params.
+      //
+      // risk_level is DERIVED LIVE from fa.risk_score and current system_setting
+      // thresholds, not read from fa.risk_level. This guarantees a single source
+      // of truth: whenever an admin updates low_risk_max / medium_risk_max in
+      // System Configuration, every page reflects the new bands immediately
+      // without needing to re-stamp historical rows.
       const [rows] = await pool.query(
         `SELECT
            i.invoice_id,
@@ -551,11 +568,17 @@ router.get(
            i.currency,
            i.status,
            fa.risk_score,
-           fa.risk_level,
+           CASE
+             WHEN fa.risk_score IS NULL              THEN NULL
+             WHEN fa.risk_score <= s.low_risk_max    THEN 'Low'
+             WHEN fa.risk_score <= s.medium_risk_max THEN 'Medium'
+             ELSE 'High'
+           END AS risk_level,
            i.uploaded_at
          FROM invoice i
          JOIN vendor v          ON v.vendor_id = i.vendor_id
          LEFT JOIN fraud_analysis fa ON fa.invoice_id = i.invoice_id
+         CROSS JOIN system_setting s
          ${whereClause}
          ORDER BY ${sortColumn} ${sortOrder}, i.invoice_id DESC
          LIMIT ${limit} OFFSET ${offset}`,
@@ -636,11 +659,23 @@ router.get(
       const ocrResult = ocrRows[0] || null;
 
       // ── 3. Fraud analysis (latest) ──
+      // risk_level is DERIVED LIVE from risk_score and current system_setting
+      // thresholds (same approach as the list endpoint — one source of truth).
       const [analysisRows] = await pool.query(
-        `SELECT analysis_id, risk_score, risk_level, analyzed_at
-         FROM fraud_analysis
-         WHERE invoice_id = ?
-         ORDER BY analyzed_at DESC
+        `SELECT
+           fa.analysis_id,
+           fa.risk_score,
+           CASE
+             WHEN fa.risk_score IS NULL              THEN NULL
+             WHEN fa.risk_score <= s.low_risk_max    THEN 'Low'
+             WHEN fa.risk_score <= s.medium_risk_max THEN 'Medium'
+             ELSE 'High'
+           END AS risk_level,
+           fa.analyzed_at
+         FROM fraud_analysis fa
+         CROSS JOIN system_setting s
+         WHERE fa.invoice_id = ?
+         ORDER BY fa.analyzed_at DESC
          LIMIT 1`,
         [invoiceId]
       );

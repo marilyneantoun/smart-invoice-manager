@@ -273,6 +273,10 @@
   color: var(--text-muted);
   border: 1px dashed var(--border-soft, rgba(15, 23, 42, 0.07));
 }
+.invd-page .doc-preview.doc-preview-missing {
+  background: #fff;
+}
+
 
 .invd-page .doc-preview svg {
   width: 32px;
@@ -904,4 +908,5 @@
     margin-left: 14px;
     margin-right: 14px;
   }
+
 }

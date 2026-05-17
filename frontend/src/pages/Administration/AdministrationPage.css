@@ -135,14 +135,12 @@
   min-width: 0;
 }
 
-/* Dropdown filter-controls — horizontal with icon on the left (matches search & InvoiceList) */
 .administration-page .filter-control.dropdown {
   flex-direction: row;
   align-items: center;
   gap: 0;
 }
 
-/* Icon inside the dropdown — positioned identically to the search icon */
 .administration-page .filter-control.dropdown > svg {
   position: absolute;
   left: 10px;
@@ -159,7 +157,6 @@
   color: var(--invoice-green);
 }
 
-/* Search icon (no label above search) */
 .administration-page .filter-control.search > svg {
   position: absolute;
   left: 10px;
@@ -227,20 +224,17 @@
   cursor: pointer;
 }
 
-/* Vendor: Approval filter — wider to fit "Pending Review" with icon padding */
 .administration-page .administration-vendor-filters .dropdown:nth-of-type(1) select,
 .administration-page .filters > .filter-control.dropdown:nth-of-type(1) select {
   width: 190px;
   min-width: 190px;
 }
 
-/* Vendor: Currency filter — fit "All currencies" with icon padding */
 .administration-page .filters > .filter-control.dropdown:nth-of-type(2) select {
   width: 165px;
   min-width: 165px;
 }
 
-/* Custom dropdown chevron (vertically centered in the row) */
 .administration-page .filter-control.dropdown::after {
   content: "";
   position: absolute;
@@ -268,7 +262,6 @@
   box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
-/* Spacer pushes Clear/Add buttons to the right */
 .administration-page .toolbar-spacer {
   flex: 1 1 auto;
   min-width: 0;
@@ -383,31 +376,28 @@
   table-layout: auto;
 }
 
-/* Vendor table — explicit column widths so it fits in ~990px without overflow */
 .administration-page .vendor-table {
   table-layout: fixed;
-  min-width: 990px;
+  min-width: 1035px;
 }
 
-.administration-page .vendor-table .col-vendor      { width: 205px; }
-.administration-page .vendor-table .col-email       { width: 200px; }
+.administration-page .vendor-table .col-vendor      { width: 200px; }
+.administration-page .vendor-table .col-email       { width: 195px; }
 .administration-page .vendor-table .col-country     { width: 100px; }
 .administration-page .vendor-table .col-currency    { width: 80px;  }
 .administration-page .vendor-table .col-vstatus     { width: 130px; }
-.administration-page .vendor-table .col-astatus     { width: 85px;  }
-.administration-page .vendor-table .col-registered  { width: 100px; }
+.administration-page .vendor-table .col-astatus     { width: 115px; }
+.administration-page .vendor-table .col-registered  { width: 125px; }
 .administration-page .vendor-table .col-actions     { width: 90px;  }
 
-/* Slightly smaller body text in vendor table for cleaner fit at narrower widths */
 .administration-page .vendor-table tbody td {
   font-size: 12.5px;
 }
 
-/* Tighter horizontal padding for small columns to maximize content space */
-.administration-page .vendor-table tbody td:nth-child(3),  /* Country */
-.administration-page .vendor-table tbody td:nth-child(4),  /* Currency */
-.administration-page .vendor-table tbody td:nth-child(6),  /* Account Status */
-.administration-page .vendor-table tbody td:nth-child(7),  /* Registered */
+.administration-page .vendor-table tbody td:nth-child(3),
+.administration-page .vendor-table tbody td:nth-child(4),
+.administration-page .vendor-table tbody td:nth-child(6),
+.administration-page .vendor-table tbody td:nth-child(7),
 .administration-page .vendor-table thead th:nth-child(3),
 .administration-page .vendor-table thead th:nth-child(4),
 .administration-page .vendor-table thead th:nth-child(6),
@@ -484,7 +474,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Truncate long content in fixed-layout columns; full value shown via title tooltip */
 .administration-page .cell-truncate {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -745,8 +734,207 @@
 }
 
 /* ============================================================
+   Vendor request flow additions
+   ============================================================ */
+
+.administration-page .pending-banner {
+  display: flex;
+  align-items: center;
+  margin: 0 0 10px;
+}
+
+.administration-page .pending-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 6px;
+  background: #F7F9F8;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.025);
+  transition:
+    background-color 150ms ease-in-out,
+    border-color 150ms ease-in-out;
+}
+
+.administration-page .pending-chip:hover {
+  background: #F4F7F5;
+  border-color: rgba(13, 150, 104, 0.24);
+}
+
+.administration-page .pending-chip svg {
+  width: 14px;
+  height: 14px;
+  color: var(--invoice-green);
+  flex-shrink: 0;
+}
+
+.administration-page .pending-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--invoice-green);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.administration-page .pending-chip-text {
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.administration-page .pending-chip-sub {
+  margin-left: 2px;
+  color: var(--text-muted-local);
+  font-weight: 500;
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
+.administration-page .vendor-table tbody tr.row-pending {
+  background: rgba(180, 83, 9, 0.045);
+  box-shadow: inset 3px 0 0 rgba(180, 83, 9, 0.55);
+}
+
+.administration-page .vendor-table tbody tr.row-pending:nth-child(even) {
+  background: rgba(180, 83, 9, 0.06);
+}
+
+.administration-page .vendor-table tbody tr.row-pending:hover {
+  background: rgba(180, 83, 9, 0.09);
+}
+
+.administration-page .vendor-table tbody tr.row-requested {
+  box-shadow: inset 3px 0 0 #B8860B;
+}
+
+.administration-page .vendor-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.administration-page .vendor-tag-requested {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border: 1px solid rgba(180, 83, 9, 0.28);
+  border-radius: 9px;
+  background: rgba(180, 83, 9, 0.10);
+  color: #8C6708;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Vendor Edit modal — placeholder warning banner + hints
+   ============================================================ */
+
+.administration-page .admin-form-warning,
+.admin-form-warning {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  border-radius: 6px;
+  background: rgba(180, 83, 9, 0.07);
+  color: #5E4806;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.admin-form-warning svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #B8860B;
+}
+
+.admin-form-warning strong {
+  display: block;
+  color: #5E4806;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.admin-form-field input.placeholder-value {
+  background: rgba(180, 83, 9, 0.05);
+  border-color: rgba(180, 83, 9, 0.32);
+  color: #8C6708;
+}
+
+.admin-form-field input.placeholder-value:focus {
+  background: #FFFFFF;
+  border-color: #0D9668;
+  color: #151A18;
+  box-shadow: 0 0 0 3px rgba(13, 150, 104, 0.13);
+}
+
+.admin-form-hint {
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #8C6708;
+  letter-spacing: 0.01em;
+}
+
+/* Vendor phone input — manual country code + digits only field */
+.admin-form-field .phone-input-group {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-form-field .phone-country-code-input,
+.admin-form-field .phone-number-input {
+  min-width: 0;
+}
+
+.admin-form-field .phone-number-input.input-error {
+  border-color: rgba(155, 44, 61, 0.42);
+}
+
+.admin-form-field .phone-number-input.input-error:focus {
+  border-color: #9B2C3D;
+  box-shadow: 0 0 0 3px rgba(155, 44, 61, 0.12);
+}
+
+.admin-form-hint.error {
+  color: #8A1F2D;
+}
+
+/* ============================================================
    Modal
    ============================================================ */
+
 .admin-modal-overlay {
   position: fixed;
   inset: 0;
@@ -866,7 +1054,7 @@
 /* Form grid inside modal */
 .admin-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 14px;
   padding-bottom: 10px;
 }
@@ -874,6 +1062,7 @@
 .admin-form-field {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .admin-form-field.full {
@@ -897,6 +1086,7 @@
 .admin-form-field input,
 .admin-form-field select {
   width: 100%;
+  min-width: 0;
   height: 35px;
   padding: 0 11px;
   font-size: 13px;
@@ -963,7 +1153,7 @@
    Responsive
    ============================================================ */
 
-/* Tablet — toolbar wraps to 2 rows but controls keep their size */
+/* Tablet toolbar */
 @media (max-width: 900px) {
   .administration-page .filters {
     align-items: flex-end;
@@ -989,6 +1179,168 @@
 
   .administration-page .toolbar-spacer {
     display: none;
+  }
+}
+
+/* Responsive tables become cards */
+@media (max-width: 760px) {
+  .administration-page .table-wrap {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .administration-page .table-scroll {
+    overflow: visible;
+  }
+
+  .administration-page table,
+  .administration-page .vendor-table,
+  .administration-page tbody {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .administration-page thead {
+    display: none;
+  }
+
+  .administration-page tbody tr.responsive-card-row {
+    display: block;
+    margin-bottom: 12px;
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    border-radius: 8px;
+    background: #FFFFFF;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+  }
+
+  .administration-page tbody tr.responsive-card-row:hover {
+    background: #FFFFFF;
+  }
+
+  .administration-page tbody tr.responsive-card-row:nth-child(even) {
+    background: #FFFFFF;
+  }
+
+  .administration-page tbody tr.responsive-card-row td {
+    display: grid;
+    grid-template-columns: minmax(108px, 36%) minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    min-height: 42px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+    white-space: normal;
+  }
+
+  .administration-page tbody tr.responsive-card-row td:last-child {
+    border-bottom: none;
+  }
+
+  .administration-page tbody tr.responsive-card-row td::before {
+    content: attr(data-label);
+    color: #5F6B7A;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.055em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .administration-page tbody tr:not(.responsive-card-row) {
+    display: block;
+  }
+
+  .administration-page tbody tr:not(.responsive-card-row) td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .administration-page .responsive-card-row .cell-truncate,
+  .administration-page .responsive-card-row .cell-mono {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .administration-page .responsive-card-row .row-actions {
+    justify-content: flex-start;
+  }
+
+  .administration-page .responsive-card-row .vendor-name {
+    white-space: normal;
+  }
+
+  .administration-page .vendor-table tbody tr.row-pending.responsive-card-row {
+    background: rgba(180, 83, 9, 0.045);
+    box-shadow:
+      inset 3px 0 0 rgba(180, 83, 9, 0.55),
+      0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .administration-page .vendor-table tbody tr.row-requested.responsive-card-row {
+    box-shadow:
+      inset 3px 0 0 #B8860B,
+      0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .administration-page .table-footer {
+    margin-top: 12px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: #FFFFFF;
+  }
+}
+
+/* Responsive modal forms */
+@media (max-width: 700px) {
+  .admin-modal-overlay {
+    align-items: flex-start;
+    padding: 24px 12px;
+  }
+
+  .admin-modal {
+    max-width: 100%;
+    border-radius: 8px;
+  }
+
+  .admin-modal-header {
+    padding: 16px 16px 12px;
+  }
+
+  .admin-modal-body {
+    padding: 14px 16px 6px;
+  }
+
+  .admin-modal-footer {
+    padding: 12px 16px;
+  }
+
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .admin-form-field.full,
+  .admin-form-checkbox,
+  .admin-form-warning,
+  .admin-form-error {
+    grid-column: auto;
+  }
+
+  .admin-form-field .phone-input-group {
+    grid-template-columns: 100px minmax(0, 1fr);
+  }
+
+  .admin-form-warning,
+  .admin-form-error,
+  .admin-modal-subtitle {
+    overflow-wrap: anywhere;
   }
 }
 
@@ -1052,12 +1404,75 @@
     flex-wrap: wrap;
   }
 
+  .administration-page .pending-chip {
+    width: 100%;
+    justify-content: flex-start;
+    row-gap: 4px;
+  }
+
+  .administration-page .pending-chip-sub {
+    flex-basis: 100%;
+    margin-left: 30px;
+  }
+
+  .administration-page .vendor-tag-requested {
+    height: 16px;
+    font-size: 9.5px;
+  }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
   .admin-modal-overlay {
-    padding: 24px 12px;
+    padding: 12px 8px;
+  }
+
+  .admin-modal-header {
+    gap: 10px;
+    padding: 14px 14px 11px;
+  }
+
+  .admin-modal-body {
+    padding: 12px 14px 4px;
+  }
+
+  .admin-modal-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .admin-modal-footer .btn {
+    width: 100%;
+    justify-content: center;
   }
 
   .admin-form-grid {
+    gap: 11px;
+  }
+
+  .admin-form-field .phone-input-group {
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .admin-form-warning {
+    gap: 8px;
+    padding: 10px 11px;
+  }
+
+  .admin-form-field label {
+    margin-bottom: 5px;
+  }
+
+  .administration-page tbody tr.responsive-card-row td {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .administration-page tbody tr.responsive-card-row td::before {
+    margin-bottom: 1px;
   }
 }
 

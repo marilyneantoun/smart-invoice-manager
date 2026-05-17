@@ -3,6 +3,17 @@
 // Administration — Vendor Management + User Management tabs.
 // Full CRUD with modals: Add, Edit, Deactivate/Reactivate,
 // Approve toggle (vendors), Reset password (users).
+//
+// Vendor request flow additions:
+//   - Pending-approval counter chip at the top of Vendor Management
+//   - Yellow row highlight on unapproved vendors
+//   - "Requested" tag on vendors whose vendor_code starts with REQ-
+//     (these were submitted via the accountant request flow)
+//   - Clicking the "Pending Review" badge on a placeholder vendor
+//     opens the Edit modal (to force the admin to replace the
+//     placeholder vendor_code/email) instead of the approve confirm
+//   - Banner inside the Edit modal warning when placeholders are
+//     still present
 // ============================================================
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -67,6 +78,16 @@ function roleBadgeClass(role) {
   if (r === 'admin') return 'badge-blue';
   if (r === 'accountant') return 'badge-yellow';
   return 'badge-neutral';
+}
+
+/* Detect vendors that were submitted via the accountant request flow.
+   The /vendors/request endpoint generates placeholder values with these
+   exact prefixes, so this check uniquely identifies a "requested" vendor. */
+function isRequestedVendor(v) {
+  if (!v) return false;
+  const code = String(v.vendor_code || '');
+  const email = String(v.email || '');
+  return code.startsWith('REQ-') || email.startsWith('pending+');
 }
 
 /* ------------------------------------------------------------
@@ -173,6 +194,19 @@ const Icon = {
       <line x1="12" y1="2" x2="12" y2="12" />
     </svg>
   ),
+  Bell: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  ),
+  Warning: () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  ),
 };
 
 /* ============================================================
@@ -216,6 +250,7 @@ function Modal({ open, onClose, title, subtitle, children, footer, size }) {
    ============================================================ */
 function VendorModal({ open, onClose, vendor, onSaved }) {
   const isEdit = !!vendor;
+
   const [form, setForm] = useState({
     vendor_name: '',
     vendor_code: '',
@@ -226,12 +261,48 @@ function VendorModal({ open, onClose, vendor, onSaved }) {
     default_currency: 'USD',
     is_approved: false,
   });
+
+  const [phoneCountryCode, setPhoneCountryCode] = useState('+961');
+  const [phoneDigits, setPhoneDigits] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const hasPlaceholderCode  = form.vendor_code.startsWith('REQ-');
+  const hasPlaceholderEmail = form.email.startsWith('pending+');
+  const hasPlaceholders     = hasPlaceholderCode || hasPlaceholderEmail;
+
+  const splitPhoneNumber = (value) => {
+    const clean = String(value || '').trim();
+
+    if (!clean) {
+      return { code: '+961', digits: '' };
+    }
+
+    const normalized = clean.replace(/\s+/g, '');
+    const knownCodes = ['+961', '+971', '+44', '+1'];
+    const matchedCode = knownCodes.find(code => normalized.startsWith(code));
+
+    if (matchedCode) {
+      return {
+        code: matchedCode,
+        digits: normalized.slice(matchedCode.length).replace(/\D/g, ''),
+      };
+    }
+
+    return {
+      code: '+961',
+      digits: normalized.replace(/\D/g, ''),
+    };
+  };
+
   useEffect(() => {
     if (!open) return;
+
     if (vendor) {
+      const parsedPhone = splitPhoneNumber(vendor.phone_number);
+
       setForm({
         vendor_name: vendor.vendor_name || '',
         vendor_code: vendor.vendor_code || '',
@@ -242,37 +313,142 @@ function VendorModal({ open, onClose, vendor, onSaved }) {
         default_currency: vendor.default_currency || vendor.currency || 'USD',
         is_approved: !!vendor.is_approved,
       });
+
+      setPhoneCountryCode(parsedPhone.code);
+      setPhoneDigits(parsedPhone.digits);
     } else {
       setForm({
-        vendor_name: '', vendor_code: '', email: '',
-        phone_number: '', address: '', country: '',
-        default_currency: 'USD', is_approved: false,
+        vendor_name: '',
+        vendor_code: '',
+        email: '',
+        phone_number: '',
+        address: '',
+        country: '',
+        default_currency: 'USD',
+        is_approved: false,
       });
+
+      setPhoneCountryCode('+961');
+      setPhoneDigits('');
     }
+
+    setPhoneError('');
     setError('');
   }, [open, vendor]);
 
   const update = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const handlePhoneCountryCodeChange = (e) => {
+    const rawValue = e.target.value;
+    const digitsOnly = rawValue.replace(/\D/g, '');
+    setPhoneCountryCode(digitsOnly ? `+${digitsOnly}` : '+');
+  };
+
+  const handlePhoneCountryCodeKeyDown = (e) => {
+    const allowedKeys = [
+      'Backspace',
+      'Delete',
+      'Tab',
+      'ArrowLeft',
+      'ArrowRight',
+      'Home',
+      'End',
+    ];
+
+    if (allowedKeys.includes(e.key)) return;
+    if (e.ctrlKey || e.metaKey) return;
+
+    if (!/^\d$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePhoneDigitsChange = (e) => {
+    const rawValue = e.target.value;
+    const digitsOnly = rawValue.replace(/\D/g, '');
+
+    setPhoneDigits(digitsOnly);
+
+    if (rawValue !== digitsOnly) {
+      setPhoneError('Phone number can contain digits only.');
+    } else {
+      setPhoneError('');
+    }
+  };
+
+  const handlePhoneKeyDown = (e) => {
+    const allowedKeys = [
+      'Backspace',
+      'Delete',
+      'Tab',
+      'ArrowLeft',
+      'ArrowRight',
+      'Home',
+      'End',
+    ];
+
+    if (allowedKeys.includes(e.key)) return;
+    if (e.ctrlKey || e.metaKey) return;
+
+    if (!/^\d$/.test(e.key)) {
+      e.preventDefault();
+      setPhoneError('Phone number can contain digits only.');
+    }
+  };
+
   const handleSubmit = async () => {
     setError('');
+
     if (!form.vendor_name.trim() || !form.vendor_code.trim() || !form.email.trim()) {
       setError('Vendor name, code, and email are required.');
       return;
     }
+
+    if (phoneError) {
+      setError('Please enter a valid phone number using digits only.');
+      return;
+    }
+
+    if (phoneDigits && !/^\+\d+$/.test(phoneCountryCode)) {
+      setError('Please enter a valid country code, for example +961.');
+      return;
+    }
+
+    if (phoneDigits && !/^\d+$/.test(phoneDigits)) {
+      setError('Phone number must contain digits only.');
+      return;
+    }
+
+    if (form.is_approved && (form.vendor_code.startsWith('REQ-') || form.email.startsWith('pending+'))) {
+      setError('Please replace with real vendor code and email before approving.');
+      return;
+    }
+
+    const cleanPhoneNumber = phoneDigits
+      ? `${phoneCountryCode}${phoneDigits}`
+      : '';
+
     setSubmitting(true);
+
     try {
       if (isEdit) {
         await apiFetch(`/vendors/${vendor.vendor_id}`, {
           method: 'PUT',
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            ...form,
+            phone_number: cleanPhoneNumber,
+          }),
         });
       } else {
         await apiFetch(`/vendors`, {
           method: 'POST',
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            ...form,
+            phone_number: cleanPhoneNumber,
+          }),
         });
       }
+
       onSaved();
       onClose();
     } catch (err) {
@@ -299,47 +475,133 @@ function VendorModal({ open, onClose, vendor, onSaved }) {
       }
     >
       <div className="admin-form-grid">
+        {isEdit && hasPlaceholders && (
+          <div className="admin-form-warning">
+            <Icon.Warning />
+            <div>
+              <strong>This vendor was submitted by an accountant for approval.</strong>
+              <div>
+                Please replace the temporary vendor code and email
+                {hasPlaceholderCode && hasPlaceholderEmail ? ' vendor code and email' :
+                 hasPlaceholderCode ? ' vendor code' : ' email'}
+                {' '}with real values before approving.
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && <div className="admin-form-error">{error}</div>}
 
         <div className="admin-form-field">
           <label>Vendor Name<span className="req"> *</span></label>
-          <input type="text" value={form.vendor_name} onChange={e => update('vendor_name', e.target.value)} autoFocus />
+          <input
+            type="text"
+            value={form.vendor_name}
+            onChange={e => update('vendor_name', e.target.value)}
+            autoFocus
+          />
         </div>
+
         <div className="admin-form-field">
           <label>Vendor Code<span className="req"> *</span></label>
-          <input className="mono" type="text" value={form.vendor_code} onChange={e => update('vendor_code', e.target.value)} placeholder="VND-011" />
+          <input
+            className={`mono ${hasPlaceholderCode ? 'placeholder-value' : ''}`}
+            type="text"
+            value={form.vendor_code}
+            onChange={e => update('vendor_code', e.target.value)}
+            placeholder="VND-011"
+          />
+          {hasPlaceholderCode && (
+            <span className="admin-form-hint">Enter the official vendor code.</span>
+          )}
         </div>
 
         <div className="admin-form-field full">
           <label>Email<span className="req"> *</span></label>
-          <input type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="contact@vendor.com" />
+          <input
+            className={hasPlaceholderEmail ? 'placeholder-value' : ''}
+            type="email"
+            value={form.email}
+            onChange={e => update('email', e.target.value)}
+            placeholder="contact@vendor.com"
+          />
+          {hasPlaceholderEmail && (
+            <span className="admin-form-hint">Enter the official vendor email.</span>
+          )}
         </div>
 
         <div className="admin-form-field">
           <label>Phone</label>
-          <input type="text" value={form.phone_number} onChange={e => update('phone_number', e.target.value)} placeholder="+961 …" />
+
+          <div className="phone-input-group">
+            <input
+              className="phone-country-code-input"
+              type="text"
+              inputMode="numeric"
+              value={phoneCountryCode}
+              onChange={handlePhoneCountryCodeChange}
+              onKeyDown={handlePhoneCountryCodeKeyDown}
+              placeholder="+961"
+              aria-label="Country code"
+              autoComplete="tel-country-code"
+            />
+
+            <input
+              className={`phone-number-input ${phoneError ? 'input-error' : ''}`}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={phoneDigits}
+              onChange={handlePhoneDigitsChange}
+              onKeyDown={handlePhoneKeyDown}
+              placeholder="70123456"
+              autoComplete="tel-national"
+            />
+          </div>
+
+          {phoneError && (
+            <span className="admin-form-hint error">{phoneError}</span>
+          )}
         </div>
+
         <div className="admin-form-field">
           <label>Country</label>
-          <input type="text" value={form.country} onChange={e => update('country', e.target.value)} placeholder="Lebanon" />
+          <input
+            type="text"
+            value={form.country}
+            onChange={e => update('country', e.target.value)}
+            placeholder="Lebanon"
+          />
         </div>
 
         <div className="admin-form-field full">
           <label>Address</label>
-          <input type="text" value={form.address} onChange={e => update('address', e.target.value)} />
+          <input
+            type="text"
+            value={form.address}
+            onChange={e => update('address', e.target.value)}
+          />
         </div>
 
         <div className="admin-form-field">
           <label>Currency</label>
-          <select value={form.default_currency} onChange={e => update('default_currency', e.target.value)}>
+          <select
+            value={form.default_currency}
+            onChange={e => update('default_currency', e.target.value)}
+          >
             <option value="USD">USD</option>
             <option value="EUR">EUR</option>
           </select>
         </div>
+
         <div className="admin-form-field"></div>
 
         <label className="admin-form-checkbox">
-          <input type="checkbox" checked={form.is_approved} onChange={e => update('is_approved', e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={form.is_approved}
+            onChange={e => update('is_approved', e.target.checked)}
+          />
           Mark as approved vendor
         </label>
       </div>
@@ -607,7 +869,6 @@ function VendorManagement() {
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // Modal state
   const [modal, setModal] = useState({ type: null, vendor: null });
   const closeModal = () => setModal({ type: null, vendor: null });
 
@@ -628,6 +889,9 @@ function VendorManagement() {
 
   useEffect(() => { fetchVendors(); }, [fetchVendors]);
   useEffect(() => { setPage(1); }, [search, approvalFilter, currencyFilter, rowsPerPage]);
+
+  const pendingCount   = useMemo(() => vendors.filter(v => !v.is_approved).length, [vendors]);
+  const requestedCount = useMemo(() => vendors.filter(v => !v.is_approved && isRequestedVendor(v)).length, [vendors]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -663,7 +927,19 @@ function VendorManagement() {
     setSearch(''); setApprovalFilter(''); setCurrencyFilter('');
   };
 
-  // Action handlers (called inside ConfirmModal -> onConfirm)
+  const handlePendingChipClick = () => {
+    setApprovalFilter('pending');
+    setPage(1);
+  };
+
+  const handleApprovalBadgeClick = (v) => {
+    if (!v.is_approved && isRequestedVendor(v)) {
+      setModal({ type: 'edit', vendor: v });
+    } else {
+      setModal({ type: 'approve', vendor: v });
+    }
+  };
+
   const toggleStatus = (v) => () => apiFetch(`/vendors/${v.vendor_id}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ is_active: !v.is_active }),
@@ -676,6 +952,28 @@ function VendorManagement() {
 
   return (
     <>
+      {pendingCount > 0 && (
+        <div className="pending-banner">
+          <button
+            type="button"
+            className="pending-chip"
+            onClick={handlePendingChipClick}
+            title="View pending vendors"
+          >
+            <Icon.Bell />
+            <span className="pending-chip-count">{pendingCount}</span>
+            <span className="pending-chip-text">
+              Vendors Awaiting Approval
+            </span>
+            {requestedCount > 0 && (
+              <span className="pending-chip-sub">
+                ({requestedCount} submitted by accountants)
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
       <div className="filters">
         <div className="filter-control search">
           <Icon.Search />
@@ -750,65 +1048,100 @@ function VendorManagement() {
               ) : paged.length === 0 ? (
                 <tr><td colSpan="8" className="empty-state">No vendors found.</td></tr>
               ) : (
-                paged.map(v => (
-                  <tr key={v.vendor_id}>
-                    <td>
-                      <div className="vendor-cell">
-                        <span className="vendor-name" title={v.vendor_name || ''}>{v.vendor_name || '—'}</span>
-                        <span className="vendor-code">
-                          {v.vendor_code || `VND-${String(v.vendor_id).padStart(3, '0')}`}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="cell-mono cell-truncate" title={v.email || ''}>{v.email || '—'}</td>
-                    <td className="cell-truncate" title={v.country || ''}>{v.country || '—'}</td>
-                    <td><span className="badge badge-neutral">{v.currency || v.default_currency || '—'}</span></td>
-                    <td>
-                      <button
-                        className={`badge ${v.is_approved ? 'badge-green' : 'badge-yellow'}`}
-                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}
-                        title={v.is_approved ? 'Click to move to pending review' : 'Click to approve'}
-                        onClick={() => setModal({ type: 'approve', vendor: v })}
-                      >
-                        {v.is_approved ? 'Approved' : 'Pending Review'}
-                      </button>
-                    </td>
-                    <td>
-                      <span className={`badge ${v.is_active ? 'badge-green' : 'badge-neutral'}`}>
-                        {v.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="cell-muted">{formatDate(v.created_at || v.registration_date)}</td>
-                    <td>
-                      <div className="row-actions">
+                paged.map(v => {
+                  const requested = isRequestedVendor(v);
+                  const rowClass = !v.is_approved
+                    ? (requested ? 'row-pending row-requested' : 'row-pending')
+                    : '';
+
+                  return (
+                    <tr key={v.vendor_id} className={`${rowClass} responsive-card-row`.trim()}>
+                      <td data-label="Vendor">
+                        <div className="vendor-cell">
+                          <span className="vendor-name-row">
+                            <span className="vendor-name" title={v.vendor_name || ''}>{v.vendor_name || '—'}</span>
+                            {!v.is_approved && requested && (
+                              <span className="vendor-tag-requested" title="Submitted by an accountant via Upload Invoice">
+                                Requested
+                              </span>
+                            )}
+                          </span>
+                          <span className="vendor-code">
+                            {v.vendor_code || `VND-${String(v.vendor_id).padStart(3, '0')}`}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td data-label="Email" className="cell-mono cell-truncate" title={v.email || ''}>
+                        {v.email || '—'}
+                      </td>
+
+                      <td data-label="Country" className="cell-truncate" title={v.country || ''}>
+                        {v.country || '—'}
+                      </td>
+
+                      <td data-label="Currency">
+                        <span className="badge badge-neutral">{v.currency || v.default_currency || '—'}</span>
+                      </td>
+
+                      <td data-label="Vendor Status">
                         <button
-                          className="icon-btn"
-                          title="Edit"
-                          onClick={() => setModal({ type: 'edit', vendor: v })}
+                          className={`badge ${v.is_approved ? 'badge-green' : 'badge-yellow'}`}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, font: 'inherit' }}
+                          title={
+                            v.is_approved
+                              ? 'Click to move to pending review'
+                              : (requested
+                                  ? 'Open Edit to replace placeholders and approve'
+                                  : 'Click to approve')
+                          }
+                          onClick={() => handleApprovalBadgeClick(v)}
                         >
-                          <Icon.Edit />
+                          {v.is_approved ? 'Approved' : 'Pending Review'}
                         </button>
-                        {v.is_active ? (
-                          <button
-                            className="icon-btn danger"
-                            title="Deactivate"
-                            onClick={() => setModal({ type: 'deactivate', vendor: v })}
-                          >
-                            <Icon.Trash />
-                          </button>
-                        ) : (
+                      </td>
+
+                      <td data-label="Account Status">
+                        <span className={`badge ${v.is_active ? 'badge-green' : 'badge-neutral'}`}>
+                          {v.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+
+                      <td data-label="Registered" className="cell-muted">
+                        {formatDate(v.created_at || v.registration_date)}
+                      </td>
+
+                      <td data-label="Actions">
+                        <div className="row-actions">
                           <button
                             className="icon-btn"
-                            title="Reactivate"
-                            onClick={() => setModal({ type: 'reactivate', vendor: v })}
+                            title="Edit"
+                            onClick={() => setModal({ type: 'edit', vendor: v })}
                           >
-                            <Icon.Refresh />
+                            <Icon.Edit />
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {v.is_active ? (
+                            <button
+                              className="icon-btn danger"
+                              title="Deactivate"
+                              onClick={() => setModal({ type: 'deactivate', vendor: v })}
+                            >
+                              <Icon.Trash />
+                            </button>
+                          ) : (
+                            <button
+                              className="icon-btn"
+                              title="Reactivate"
+                              onClick={() => setModal({ type: 'reactivate', vendor: v })}
+                            >
+                              <Icon.Refresh />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -842,7 +1175,6 @@ function VendorManagement() {
         </div>
       </div>
 
-      {/* Modals */}
       <VendorModal
         open={modal.type === 'add' || modal.type === 'edit'}
         vendor={modal.type === 'edit' ? modal.vendor : null}
@@ -905,7 +1237,6 @@ function UserManagement() {
   const [modal, setModal] = useState({ type: null, user: null });
   const closeModal = () => setModal({ type: null, user: null });
 
-  // Read current user so we can prevent self-deactivation
   const currentUser = useMemo(() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); }
     catch { return {}; }
@@ -1042,22 +1373,33 @@ function UserManagement() {
                   const isSelf = currentUser && u.user_id === currentUser.user_id;
 
                   return (
-                    <tr key={u.user_id || u.email}>
-                      <td>
+                    <tr key={u.user_id || u.email} className="responsive-card-row">
+                      <td data-label="User">
                         <div className="row-user">
                           <div className={`row-avatar ${variant}`.trim()}>{initials}</div>
                           <span className="cell-strong">{fullName}</span>
                         </div>
                       </td>
-                      <td className="cell-mono">{u.email || '—'}</td>
-                      <td><span className={`badge ${roleBadgeClass(role)}`}>{role || '—'}</span></td>
-                      <td>
+
+                      <td data-label="Email" className="cell-mono">
+                        {u.email || '—'}
+                      </td>
+
+                      <td data-label="Role">
+                        <span className={`badge ${roleBadgeClass(role)}`}>{role || '—'}</span>
+                      </td>
+
+                      <td data-label="Status">
                         <span className={`badge ${u.is_active ? 'badge-green' : 'badge-neutral'}`}>
                           {u.is_active ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="cell-muted">{formatDate(u.created_at)}</td>
-                      <td>
+
+                      <td data-label="Created" className="cell-muted">
+                        {formatDate(u.created_at)}
+                      </td>
+
+                      <td data-label="Actions">
                         <div className="row-actions">
                           <button
                             className="icon-btn"
@@ -1130,7 +1472,6 @@ function UserManagement() {
         </div>
       </div>
 
-      {/* Modals */}
       <UserModal
         open={modal.type === 'add' || modal.type === 'edit'}
         user={modal.type === 'edit' ? modal.user : null}
